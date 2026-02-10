@@ -15,6 +15,7 @@ import {Badge} from '@/components/ui/badge';
 import {agentSpecSchema} from '@/lib/schemas';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {readLocal, storageKeys, writeLocal} from '@/lib/storage';
+import {toast} from 'sonner';
 
 type AgentStep = {id: string; step: string; doneCriteria: string};
 
@@ -151,11 +152,11 @@ export function AgentBuilderPage() {
     };
     const parsed = agentSpecSchema.safeParse(payload);
     if (!parsed.success) {
-      alert(parsed.error.issues[0]?.message);
+      toast.error(parsed.error.issues[0]?.message || 'Invalid agent');
       return;
     }
     writeLocal(storageKeys.agents, parsed.data);
-    alert(t('agentBuilder.saved'));
+    toast.success(t('agentBuilder.saved'));
   };
 
   const exportBundle = async () => {
@@ -174,7 +175,7 @@ export function AgentBuilderPage() {
 
     const parsed = agentSpecSchema.safeParse(spec);
     if (!parsed.success) {
-      alert(parsed.error.issues[0]?.message);
+      toast.error(parsed.error.issues[0]?.message || 'Invalid agent');
       return;
     }
 

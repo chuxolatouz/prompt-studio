@@ -8,6 +8,7 @@ import {Textarea} from '@/components/ui/textarea';
 import {useAuth} from '@/features/common/auth-context';
 import {featureFlags} from '@/lib/feature-flags';
 import {getSupabaseBrowserClient} from '@/lib/supabase';
+import {toast} from 'sonner';
 
 type PromptDetail = {
   id: string;
@@ -90,12 +91,12 @@ export function PublicPromptPage({slug}: {slug: string}) {
       reason,
       status: 'open',
     });
-    alert(t('gallery.reported'));
+    toast.success(t('gallery.reported'));
   };
 
   const duplicatePrompt = async () => {
     if (!user || !item) {
-      alert(t('promptBuilder.loginRequired'));
+      toast.error(t('promptBuilder.loginRequired'));
       return;
     }
 
@@ -117,11 +118,11 @@ export function PublicPromptPage({slug}: {slug: string}) {
     });
 
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
 
-    alert(t('gallery.duplicated'));
+    toast.success(t('gallery.duplicated'));
   };
 
   if (!featureFlags.gallery) {

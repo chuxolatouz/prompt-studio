@@ -12,6 +12,7 @@ import {Textarea} from '@/components/ui/textarea';
 import {readLocal, storageKeys, writeLocal} from '@/lib/storage';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {skillPackSchema, SkillPack} from '@/lib/schemas';
+import {toast} from 'sonner';
 
 function buildSkillMarkdown(skill: SkillPack['skills'][number]) {
   return `---\nname: "${skill.name}"\ndescription: "${skill.description}"\ntags: [${skill.tags.map((tag) => `"${tag}"`).join(', ')}]\nversion: "0.1"\nlanguage: "${skill.language}"\n---\n\n${skill.markdown}`;
@@ -73,17 +74,17 @@ export function SkillBuilderPage() {
   const saveLocal = () => {
     const parsed = skillPackSchema.safeParse(pack);
     if (!parsed.success) {
-      alert(parsed.error.issues[0]?.message);
+      toast.error(parsed.error.issues[0]?.message || 'Invalid skill pack');
       return;
     }
     writeLocal(storageKeys.skillPacks, parsed.data);
-    alert(t('skillBuilder.saved'));
+    toast.success(t('skillBuilder.saved'));
   };
 
   const exportZip = async () => {
     const parsed = skillPackSchema.safeParse(pack);
     if (!parsed.success) {
-      alert(parsed.error.issues[0]?.message);
+      toast.error(parsed.error.issues[0]?.message || 'Invalid skill pack');
       return;
     }
 

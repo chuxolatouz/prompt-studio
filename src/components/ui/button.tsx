@@ -12,7 +12,7 @@ const buttonVariants = cva(
           'bg-[color:var(--prompteero-blue)] text-white hover:bg-[#12548c] focus-visible:ring-[color:var(--prompteero-blue)]',
         secondary:
           'bg-[color:var(--prompteero-light)] text-[color:var(--prompteero-dark)] hover:bg-[#d8d8d8]',
-        outline: 'border border-[color:var(--prompteero-light)] bg-white hover:bg-slate-50',
+        outline: 'border border-[color:var(--prompteero-light)] bg-white text-[color:var(--prompteero-dark)] hover:bg-slate-50',
         ghost: 'text-[color:var(--prompteero-mid)] hover:bg-slate-100',
         destructive: 'bg-red-600 text-white hover:bg-red-700',
       },

@@ -22,6 +22,7 @@ import {promptBuilderDraftSchema, promptBuilderStateSchema, PromptBuilderState} 
 import {storageKeys, readLocal, writeLocal} from '@/lib/storage';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {getSupabaseBrowserClient, supabaseEnabled} from '@/lib/supabase';
+import {toast} from 'sonner';
 
 type SeedBlock = {
   id: string;
@@ -385,7 +386,7 @@ export function PromptBuilderPage() {
   const saveDraft = () => {
     const parsed = promptBuilderStateSchema.safeParse(state);
     if (!parsed.success) {
-      alert(parsed.error.issues[0]?.message);
+      toast.error(parsed.error.issues[0]?.message || 'Invalid prompt');
       return;
     }
 
@@ -393,23 +394,23 @@ export function PromptBuilderPage() {
       state: parsed.data,
       updatedAt: new Date().toISOString(),
     });
-    alert(t('promptBuilder.savedLocal'));
+    toast.success(t('promptBuilder.savedLocal'));
   };
 
   const handlePublish = async () => {
     if (!supabaseEnabled) {
-      alert(t('promptBuilder.supabaseRequired'));
+      toast.error(t('promptBuilder.supabaseRequired'));
       return;
     }
 
     if (!user) {
-      alert(t('promptBuilder.loginRequired'));
+      toast.error(t('promptBuilder.loginRequired'));
       return;
     }
 
     const parsed = promptBuilderStateSchema.safeParse(state);
     if (!parsed.success) {
-      alert(parsed.error.issues[0]?.message);
+      toast.error(parsed.error.issues[0]?.message || 'Invalid prompt');
       return;
     }
 
@@ -432,11 +433,11 @@ export function PromptBuilderPage() {
     });
 
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
 
-    alert(t('promptBuilder.published'));
+    toast.success(t('promptBuilder.published'));
   };
 
   const resetAntiHallucination = () => {
@@ -452,7 +453,7 @@ export function PromptBuilderPage() {
   const exportZip = async () => {
     const parsed = promptBuilderStateSchema.safeParse(state);
     if (!parsed.success) {
-      alert(parsed.error.issues[0]?.message);
+      toast.error(parsed.error.issues[0]?.message || 'Invalid prompt');
       return;
     }
 
@@ -618,7 +619,13 @@ export function PromptBuilderPage() {
             <CardContent className="space-y-3">
               <Textarea value={composedPrompt} readOnly className="min-h-[420px]" />
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" onClick={async () => navigator.clipboard.writeText(composedPrompt)}>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(composedPrompt);
+                    toast.success(t('actions.copied'));
+                  }}
+                >
                   {t('actions.copy')}
                 </Button>
                 <Button variant="secondary" onClick={() => downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown')}>

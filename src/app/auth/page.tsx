@@ -7,6 +7,7 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {Input} from '@/components/ui/input';
 import {useAuth} from '@/features/common/auth-context';
 import {featureFlags} from '@/lib/feature-flags';
+import {toast} from 'sonner';
 
 export default function AuthPage() {
   const t = useTranslations();
@@ -45,10 +46,10 @@ export default function AuthPage() {
   const submit = async () => {
     const response = mode === 'login' ? await signIn(email, password) : await signUp(email, password);
     if (response.error) {
-      alert(response.error);
+      toast.error(response.error);
       return;
     }
-    alert(t(mode === 'login' ? 'auth.loginSuccess' : 'auth.registerSuccess'));
+    toast.success(t(mode === 'login' ? 'auth.loginSuccess' : 'auth.registerSuccess'));
   };
 
   return (

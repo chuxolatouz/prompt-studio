@@ -8,6 +8,7 @@ import {Input} from '@/components/ui/input';
 import {useAuth} from '@/features/common/auth-context';
 import {featureFlags} from '@/lib/feature-flags';
 import {getSupabaseBrowserClient} from '@/lib/supabase';
+import {toast} from 'sonner';
 
 type Report = {
   id: string;
@@ -41,7 +42,7 @@ export default function AdminPage() {
     await supabase.from('prompts').update(payload).eq('id', targetId);
     await supabase.from('reports').update({status: 'resolved'}).eq('id', reportId);
 
-    alert(t('admin.updated'));
+    toast.success(t('admin.updated'));
     setReports((prev) => prev.map((report) => (report.id === reportId ? {...report, status: 'resolved'} : report)));
     setHiddenReason('');
   };

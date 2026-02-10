@@ -17,22 +17,22 @@ export function Logo({variant = 'full', size, className, priority = false}: Logo
         alt="prompteero"
         width={iconSize}
         height={iconSize}
-        className={cn('h-auto w-auto rounded-md', className)}
+        className={cn('h-auto w-auto rounded-md object-cover', className)}
         priority={priority}
       />
     );
   }
 
   const width = size ?? 180;
-  const height = Math.round(width * (1024 / 1024));
+  const height = Math.round(width * (390 / 574));
 
   return (
     <Image
-      src="/brand/prompteero-logo-primary.png"
+      src="/logo_promptero.png"
       alt="prompteero"
       width={width}
       height={height}
-      className={cn('h-auto w-auto', className)}
+      className={cn('h-auto w-auto object-contain', className)}
       priority={priority}
     />
   );

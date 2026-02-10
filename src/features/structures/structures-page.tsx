@@ -5,13 +5,14 @@ import structures from '@/data/structures.json';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Textarea} from '@/components/ui/textarea';
+import {toast} from 'sonner';
 
 export function StructuresPage() {
   const t = useTranslations();
 
   const copyText = async (value: string) => {
     await navigator.clipboard.writeText(value);
-    alert(t('actions.copied'));
+    toast.success(t('actions.copied'));
   };
 
   return (

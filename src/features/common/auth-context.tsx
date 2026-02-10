@@ -7,6 +7,7 @@ import {getSupabaseBrowserClient, supabaseEnabled} from '@/lib/supabase';
 type AuthContextValue = {
   user: User | null;
   session: Session | null;
+  profileName: string | null;
   isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{error?: string}>;
@@ -17,20 +18,21 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function syncProfile(user: User | null) {
-  if (!user) return {isAdmin: false};
+  if (!user) return {isAdmin: false, profileName: null};
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return {isAdmin: false};
+  if (!supabase) return {isAdmin: false, profileName: user.email ?? null};
 
   const displayName = user.email?.split('@')[0] ?? 'User';
   await supabase.from('users_profile').upsert({id: user.id, display_name: displayName}, {onConflict: 'id'});
 
-  const {data: profile} = await supabase.from('users_profile').select('is_admin').eq('id', user.id).single();
-  return {isAdmin: Boolean(profile?.is_admin)};
+  const {data: profile} = await supabase.from('users_profile').select('is_admin,display_name').eq('id', user.id).single();
+  return {isAdmin: Boolean(profile?.is_admin), profileName: profile?.display_name || user.email || null};
 }
 
 export function AuthProvider({children}: {children: React.ReactNode}) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +48,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       setUser(data.session?.user ?? null);
       const profile = await syncProfile(data.session?.user ?? null);
       setIsAdmin(profile.isAdmin);
+      setProfileName(profile.profileName);
       setLoading(false);
     });
 
@@ -56,6 +59,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       setUser(nextSession?.user ?? null);
       const profile = await syncProfile(nextSession?.user ?? null);
       setIsAdmin(profile.isAdmin);
+      setProfileName(profile.profileName);
       setLoading(false);
     });
 
@@ -66,6 +70,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     () => ({
       user,
       session,
+      profileName,
       isAdmin,
       loading,
       signIn: async (email, password) => {
@@ -86,7 +91,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         await supabase.auth.signOut();
       },
     }),
-    [isAdmin, loading, session, user]
+    [isAdmin, loading, profileName, session, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

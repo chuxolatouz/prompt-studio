@@ -33,7 +33,7 @@ h6 {
 }
 
 a {
-  color: var(--prompteero-blue);
+  color: inherit;
 }
 
 code,
