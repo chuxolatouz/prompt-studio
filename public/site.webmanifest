@@ -1,0 +1,20 @@
+{
+  "name": "prompteero",
+  "short_name": "prompteero",
+  "description": "Te lo dejo listo para usar",
+  "theme_color": "#1660A1",
+  "background_color": "#FFFFFF",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/brand/android-chrome-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/android-chrome-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

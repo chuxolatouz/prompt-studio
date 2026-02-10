@@ -1,0 +1,7 @@
+[
+  {"id":"full-stack-developer","labelKey":"roles.fullStackDeveloper","icon":"Code2"},
+  {"id":"prompt-engineer","labelKey":"roles.promptEngineer","icon":"Sparkles"},
+  {"id":"image-creative-director","labelKey":"roles.imageCreativeDirector","icon":"Image"},
+  {"id":"video-script-director","labelKey":"roles.videoScriptDirector","icon":"Film"},
+  {"id":"qa-quality-analyst","labelKey":"roles.qaQualityAnalyst","icon":"ShieldCheck"}
+]

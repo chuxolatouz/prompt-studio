@@ -1,0 +1,8 @@
+[
+  {"id":"dev-web-1","titleKey":"blocks.devWebRoleTitle","contentKey":"blocks.devWebRoleContent","niche":"dev:web","structure":"RTF","level":"basic","tags":["dev","web"],"image":"/chips/dev-web.svg","targetColumn":"role"},
+  {"id":"dev-backend-1","titleKey":"blocks.devBackendTitle","contentKey":"blocks.devBackendContent","niche":"dev:backend","structure":"TAO","level":"intermediate","tags":["dev","backend"],"image":"/chips/dev-backend.svg","targetColumn":"goal"},
+  {"id":"image-photo-1","titleKey":"blocks.imagePhotoTitle","contentKey":"blocks.imagePhotoContent","niche":"images:photo-real","structure":"CO-STAR","level":"basic","tags":["images","photo"],"image":"/chips/image-photo.svg","targetColumn":"context"},
+  {"id":"image-ui-1","titleKey":"blocks.imageUiTitle","contentKey":"blocks.imageUiContent","niche":"images:ui-mock","structure":"CARE","level":"intermediate","tags":["images","ui"],"image":"/chips/image-ui.svg","targetColumn":"examples"},
+  {"id":"video-cinematic-1","titleKey":"blocks.videoCinematicTitle","contentKey":"blocks.videoCinematicContent","niche":"videos:cinematic","structure":"BAB","level":"basic","tags":["videos","cinematic"],"image":"/chips/video-cinematic.svg","targetColumn":"goal"},
+  {"id":"video-ads-1","titleKey":"blocks.videoAdsTitle","contentKey":"blocks.videoAdsContent","niche":"videos:ads","structure":"STAR","level":"intermediate","tags":["videos","ads"],"image":"/chips/video-ads.svg","targetColumn":"output-format"}
+]

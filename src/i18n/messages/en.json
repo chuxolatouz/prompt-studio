@@ -1,0 +1,314 @@
+{
+  "common": {
+    "language": "Language",
+    "search": "Search",
+    "loading": "Loading...",
+    "name": "Name",
+    "description": "Description",
+    "tags": "Tags"
+  },
+  "nav": {
+    "home": "Home",
+    "builders": "Builders",
+    "openBuilders": "Open Builders",
+    "menu": "Menu",
+    "promptBuilder": "Prompt Builder",
+    "skillBuilder": "Skill Builder",
+    "agentBuilder": "Agent Builder",
+    "structures": "Structures",
+    "gallery": "Gallery",
+    "dashboard": "Dashboard",
+    "auth": "Login"
+  },
+  "filters": {
+    "allNiches": "All niches",
+    "allStructures": "All structures"
+  },
+  "visibility": {
+    "private": "Private",
+    "public": "Public"
+  },
+  "actions": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "exportMd": "Export .md",
+    "exportJson": "Export .json",
+    "exportZip": "Export .zip",
+    "publish": "Publish",
+    "saveDraft": "Save draft",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "add": "Add",
+    "addStep": "Add step"
+  },
+  "landing": {
+    "title": "Visual builder for prompts, skills and agents without being an expert",
+    "subtitle": "Drag blocks, follow step 1 / step 2 / step 3 and export ready-to-use text. No API keys, no model execution.",
+    "ctaPrompt": "Start Prompt Builder",
+    "ctaBuilders": "Start in Builders",
+    "goToBuilder": "Go to Builder",
+    "ctaGallery": "Open Public Gallery",
+    "prompt": {
+      "title": "What is a Prompt?",
+      "description": "Clear instructions so a model answers exactly how you need.",
+      "step1": "Step 1: Pick a role.",
+      "step2": "Step 2: Define goal and context.",
+      "step3": "Step 3: Export as .md or .json."
+    },
+    "skill": {
+      "title": "What is a Skill?",
+      "description": "A reusable Markdown block that teaches how to do a task.",
+      "step1": "Step 1: Create skills in a pack.",
+      "step2": "Step 2: Edit SKILL.md.",
+      "step3": "Step 3: Download .zip pack."
+    },
+    "agent": {
+      "title": "What is an Agent?",
+      "description": "A text-first agent design: role, objective, steps, tools and output contract.",
+      "step1": "Step 1: Define inputs and plan.",
+      "step2": "Step 2: Select tools (metadata).",
+      "step3": "Step 3: Export AGENTS.md + bundle."
+    },
+    "structures": {
+      "title": "Recommended structures",
+      "description": "Learn frameworks like RTF, TAO, BAB, CARE and more.",
+      "cta": "Go to /structures"
+    },
+    "builders": {
+      "title": "Ready-to-use builders",
+      "description": "Drag & drop canvas for non-experts with live preview.",
+      "open": "Open Builders"
+    },
+    "differentialTitle": "prompteero differential",
+    "differentialDesc": "Built for beginners with visual-first UX.",
+    "diff1": "Canvas drag & drop + 3 modules (Prompt / Skill / Agent) with non-expert UX.",
+    "diff2": "Skill Builder exports packs as folders with SKILL.md.",
+    "diff3": "Agent Builder exports AGENTS.md + skills/ bundle."
+  },
+  "promptBuilder": {
+    "title": "Prompt Builder",
+    "applyMacro": "Apply structure macro",
+    "subtitle": "Build prompts piece by piece in a Trello-like canvas.",
+    "promptTitle": "Prompt title",
+    "structure": "Prompt Structure",
+    "role": "Starter role",
+    "antiHallucination": "Anti-hallucination",
+    "reset": "Reset",
+    "steps": "For Dummies",
+    "step1": "Step 1: Drag blocks from the palette.",
+    "step2": "Step 2: Edit each block in the canvas.",
+    "step3": "Step 3: Copy or export final prompt.",
+    "palette": "Palette",
+    "paletteHelp": "Filter by niche and structure.",
+    "canvas": "Canvas",
+    "canvasHelp": "Droppable columns: Role, Goal, Context, Inputs, Constraints, Output Format, Examples.",
+    "preview": "Preview",
+    "livePreview": "Real-time final prompt.",
+    "savedLocal": "Draft saved in localStorage.",
+    "copied": "Prompt copied.",
+    "supabaseRequired": "Publishing requires Supabase setup.",
+    "loginRequired": "Login is required to publish.",
+    "published": "Prompt published to gallery."
+  },
+  "skillBuilder": {
+    "title": "Skill Builder",
+    "subtitle": "Create Markdown skill packs exportable with SKILL.md.",
+    "packTitle": "Pack title",
+    "packDescription": "Pack description",
+    "addSkill": "New skill",
+    "downloadPack": "Download Pack (.zip)",
+    "empty": "No skills yet. Create the first one.",
+    "saved": "Pack saved in localStorage.",
+    "editor": "Markdown editor",
+    "editorHelp": "Fill Purpose / When to use / Steps / Examples / Output contract.",
+    "selectSkill": "Select a skill to edit.",
+    "newSkill": "New Skill",
+    "noDescription": "No description"
+  },
+  "agentBuilder": {
+    "title": "Agent Builder",
+    "subtitle": "Design a conceptual agent and export ready-to-use text.",
+    "agentTitle": "Agent title",
+    "agentRole": "Agent Role",
+    "objective": "Objective",
+    "inputs": "Inputs",
+    "input": "Input",
+    "steps": "Plan / Steps",
+    "tools": "Tools (metadata)",
+    "policies": "Policies / Constraints",
+    "outputContract": "Output Contract",
+    "attachSkills": "Attach skills",
+    "noSkills": "No local skills available to attach.",
+    "outputs": "Outputs",
+    "outputsHelp": "1) Agent Prompt 2) AGENTS.md 3) Bundle export .zip",
+    "agentPrompt": "Agent Prompt",
+    "saved": "Agent saved in localStorage.",
+    "exportBundle": "Export Bundle (.zip)"
+  },
+  "gallery": {
+    "title": "Public Gallery",
+    "hiddenByAdmin": "Hidden by moderation",
+    "noReason": "No reason",
+    "subtitle": "Public prompts in read-only mode.",
+    "disabled": "Public gallery requires Supabase setup.",
+    "disabledTitle": "Local mode is active",
+    "search": "Search by title/tags/structure",
+    "sortRecent": "Most recent",
+    "sortViews": "Most viewed",
+    "empty": "No public prompts yet.",
+    "anonymous": "Anonymous",
+    "notFound": "Prompt unavailable",
+    "notFoundDesc": "It may be hidden or not exist.",
+    "report": "Report",
+    "reportReason": "Report reason",
+    "reported": "Report submitted.",
+    "duplicate": "Duplicate",
+    "duplicated": "Private copy created."
+  },
+  "auth": {
+    "title": "Login / Register",
+    "subtitle": "Email + password (MVP 0.1)",
+    "disabled": "Auth disabled: configure Supabase to enable login.",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Sign out",
+    "loggedIn": "Signed in",
+    "loginSuccess": "Login successful",
+    "registerSuccess": "Registration sent"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Your prompts, packs and agents.",
+    "prompts": "Prompts",
+    "myPrompts": "My prompts",
+    "skillPacks": "Skill Packs",
+    "myPacks": "My packs",
+    "agents": "Agents",
+    "myAgents": "My agents",
+    "empty": "No items yet."
+  },
+  "admin": {
+    "title": "Admin",
+    "hiddenReason": "Hidden reason",
+    "subtitle": "Minimal moderation reports.",
+    "disabled": "Admin requires Supabase setup.",
+    "forbidden": "Admins only.",
+    "empty": "No open reports.",
+    "hidePrompt": "Hide prompt",
+    "restorePrompt": "Restore prompt",
+    "updated": "Status updated"
+  },
+  "structuresPage": {
+    "title": "Prompt Structures",
+    "subtitle": "Simple templates to write clear prompts.",
+    "whenToUse": "When to use",
+    "template": "Template",
+    "example": "Example"
+  },
+  "buildersHub": {
+    "title": "Builders",
+    "subtitle": "Pick the builder you need and start in a few steps.",
+    "open": "Open builder",
+    "promptDesc": "Drag & drop canvas to build prompts from blocks.",
+    "skillDesc": "Create skill packs with exportable SKILL.md.",
+    "agentDesc": "Design text-based agents and export AGENTS.md + bundle."
+  },
+  "roles": {
+    "fullStackDeveloper": "Full-Stack Developer",
+    "promptEngineer": "Prompt Engineer",
+    "imageCreativeDirector": "Image Creative Director",
+    "videoScriptDirector": "Video Script Director",
+    "qaQualityAnalyst": "QA / Quality Analyst"
+  },
+  "blocks": {
+    "devWebRoleTitle": "Web Dev Role",
+    "devWebRoleContent": "Act as a senior Full-Stack Developer for web apps.",
+    "devBackendTitle": "Backend Goal",
+    "devBackendContent": "Design scalable backend architecture with clear steps.",
+    "imagePhotoTitle": "Photo-real Direction",
+    "imagePhotoContent": "Write prompts for photo-real images with lighting and lens.",
+    "imageUiTitle": "UI Mock Brief",
+    "imageUiContent": "Create UI mock brief with layout, hierarchy and style.",
+    "videoCinematicTitle": "Cinematic Script",
+    "videoCinematicContent": "Short cinematic script with pacing, shots and tone.",
+    "videoAdsTitle": "Ads Storyboard",
+    "videoAdsContent": "Ad storyboard with hook, benefit and CTA."
+  },
+  "tools": {
+    "webSearch": "Web Search",
+    "webSearchDesc": "Find updated info on the web.",
+    "fileReader": "File Reader",
+    "fileReaderDesc": "Read files to extract context.",
+    "codeRunner": "Code Runner",
+    "codeRunnerDesc": "Run scripts and validate outputs.",
+    "imageAnalyzer": "Image Analyzer",
+    "imageAnalyzerDesc": "Analyze images for description or visual QA.",
+    "ticketWriter": "Ticket Writer",
+    "ticketWriterDesc": "Write actionable tickets/tasks."
+  },
+  "structures": {
+    "rtf": {
+      "title": "Role / Task / Format",
+      "whatIs": "RTF separates who speaks, what to do and how to deliver. It is the easiest structure to start with.",
+      "when1": "When you need clear direct answers.",
+      "when2": "When final format matters (table, list, JSON).",
+      "when3": "When you want less ambiguity from the start.",
+      "template": "Role: [role]\nTask: [task]\nFormat: [output format]",
+      "example": "Role: You are a QA Analyst.\nTask: Evaluate 5 edge cases for login.\nFormat: Numbered list with risk and priority."
+    },
+    "tao": {
+      "title": "Task / Action / Output",
+      "whatIs": "TAO defines the objective, expected process and exact output for better execution control.",
+      "when1": "When you need a guided workflow.",
+      "when2": "When there are multiple intermediate actions.",
+      "when3": "When output consistency is important.",
+      "template": "Task: [goal]\nAction: [steps/method]\nOutput: [deliverable]",
+      "example": "Task: Create refactor plan.\nAction: Analyze modules, detect debt, prioritize.\nOutput: Table with impact, effort and suggested order."
+    },
+    "bab": {
+      "title": "Before / After / Bridge",
+      "whatIs": "BAB compares current vs desired state and defines the bridge to get there.",
+      "when1": "For transformation messaging.",
+      "when2": "When explaining process changes.",
+      "when3": "For value-driven proposals.",
+      "template": "Before: [current state]\nAfter: [desired state]\nBridge: [actions from A to B]",
+      "example": "Before: Team needs 3 days to document tickets.\nAfter: Clear tickets in under 30 min.\nBridge: Fixed template, checklist and quick review."
+    },
+    "care": {
+      "title": "Context / Action / Result / Examples",
+      "whatIs": "CARE adds examples to stabilize quality and style of the output.",
+      "when1": "When context is complex.",
+      "when2": "When you need repeatable responses.",
+      "when3": "When you want example-driven guidance.",
+      "template": "Context: [context]\nAction: [what to do]\nResult: [expected result]\nExamples: [references]",
+      "example": "Context: Online course launch.\nAction: Create 3 landing page copies.\nResult: Persuasive copy by segment.\nExamples: Clear style, strong CTA, max 80 words."
+    },
+    "costar": {
+      "title": "Context / Objective / Style / Tone / Audience / Response",
+      "whatIs": "CO-STAR gives tight control over intention and voice across audiences.",
+      "when1": "For copywriting and communication.",
+      "when2": "When tone and audience matter.",
+      "when3": "For creative multi-format briefs.",
+      "template": "Context: [situation]\nObjective: [objective]\nStyle: [style]\nTone: [tone]\nAudience: [audience]\nResponse: [response type]",
+      "example": "Context: Fitness app launch.\nObjective: Increase signups.\nStyle: Direct and useful.\nTone: Motivational.\nAudience: Busy people 25-40.\nResponse: 5 short ads."
+    },
+    "crispe": {
+      "title": "Capacity / Role / Insight / Statement / Personality / Experiment",
+      "whatIs": "CRISPE is useful for strategic or creative work where personality and experimentation are explicit.",
+      "when1": "For advanced brainstorming.",
+      "when2": "When you need hypotheses and experiments.",
+      "when3": "For brand-voice outputs.",
+      "template": "Capacity: [capabilities]\nRole: [role]\nInsight: [key data]\nStatement: [thesis/goal]\nPersonality: [voice style]\nExperiment: [test/variations]",
+      "example": "Capacity: Growth strategist.\nRole: Senior consultant.\nInsight: CTR dropped 18%.\nStatement: Recover CTR in 14 days.\nPersonality: Practical and concise.\nExperiment: 3 subject line + CTA variants."
+    },
+    "star": {
+      "title": "Situation / Task / Action / Result",
+      "whatIs": "STAR builds problem-to-solution narratives, useful for cases and retrospectives.",
+      "when1": "For real case descriptions.",
+      "when2": "For postmortems and interviews.",
+      "when3": "For communicating impact.",
+      "template": "Situation: [situation]\nTask: [task]\nAction: [action]\nResult: [measurable result]",
+      "example": "Situation: Support overloaded with repeated tickets.\nTask: Reduce tickets by 30%.\nAction: Knowledge base + response macros.\nResult: -35% tickets in 3 weeks."
+    }
+  }
+}

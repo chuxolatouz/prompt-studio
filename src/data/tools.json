@@ -1,0 +1,7 @@
+[
+  {"id":"web-search","nameKey":"tools.webSearch","descriptionKey":"tools.webSearchDesc"},
+  {"id":"file-reader","nameKey":"tools.fileReader","descriptionKey":"tools.fileReaderDesc"},
+  {"id":"code-runner","nameKey":"tools.codeRunner","descriptionKey":"tools.codeRunnerDesc"},
+  {"id":"image-analyzer","nameKey":"tools.imageAnalyzer","descriptionKey":"tools.imageAnalyzerDesc"},
+  {"id":"ticket-writer","nameKey":"tools.ticketWriter","descriptionKey":"tools.ticketWriterDesc"}
+]

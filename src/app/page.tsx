@@ -1,65 +1,111 @@
-import Image from "next/image";
+import Link from 'next/link';
+import {getTranslations} from 'next-intl/server';
+import {Bot, BrainCircuit, Puzzle, Sparkles, TextCursorInput, WandSparkles} from 'lucide-react';
+import {Button} from '@/components/ui/button';
+import {Logo} from '@/components/layout/logo';
+import {Badge} from '@/components/ui/badge';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 
-export default function Home() {
+const cards = [
+  {icon: TextCursorInput, key: 'landing.prompt', href: '/builders'},
+  {icon: Puzzle, key: 'landing.skill', href: '/builders'},
+  {icon: Bot, key: 'landing.agent', href: '/builders'},
+];
+
+export default async function Home() {
+  const t = await getTranslations();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-blue-200 bg-gradient-to-br from-cyan-100 via-white to-emerald-100 p-6">
+        <Logo variant="full" size={210} className="mb-2" priority />
+        <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-slate-900">{t('landing.title')}</h1>
+        <p className="mt-3 max-w-3xl text-lg text-slate-700">{t('landing.subtitle')}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href="/builders">{t('landing.ctaBuilders')}</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/gallery">{t('landing.ctaGallery')}</Link>
+          </Button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        {cards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Card key={card.key}>
+              <CardHeader>
+                <Icon className="h-10 w-10 text-blue-600" />
+                <CardTitle>{t(`${card.key}.title`)}</CardTitle>
+                <CardDescription>{t(`${card.key}.description`)}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-slate-700">
+                <p>{t(`${card.key}.step1`)}</p>
+                <p>{t(`${card.key}.step2`)}</p>
+                <p>{t(`${card.key}.step3`)}</p>
+                <Link href={card.href} className="inline-block text-xs font-semibold text-blue-700 underline underline-offset-2">
+                  {t('landing.goToBuilder')}
+                </Link>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <Sparkles className="h-10 w-10 text-emerald-600" />
+            <CardTitle>{t('landing.structures.title')}</CardTitle>
+            <CardDescription>{t('landing.structures.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/structures">{t('landing.structures.cta')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <WandSparkles className="h-10 w-10 text-orange-600" />
+            <CardTitle>{t('landing.builders.title')}</CardTitle>
+            <CardDescription>{t('landing.builders.description')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button asChild>
+              <Link href="/builders">{t('landing.builders.open')}</Link>
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/prompt-builder">
+                <Badge variant="secondary">{t('nav.promptBuilder')}</Badge>
+              </Link>
+              <Link href="/skill-builder">
+                <Badge variant="secondary">{t('nav.skillBuilder')}</Badge>
+              </Link>
+              <Link href="/agent-builder">
+                <Badge variant="secondary">{t('nav.agentBuilder')}</Badge>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader>
+            <BrainCircuit className="h-10 w-10 text-violet-600" />
+            <CardTitle>{t('landing.differentialTitle')}</CardTitle>
+            <CardDescription>{t('landing.differentialDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-slate-700">
+            <p>{t('landing.diff1')}</p>
+            <p>{t('landing.diff2')}</p>
+            <p>{t('landing.diff3')}</p>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
