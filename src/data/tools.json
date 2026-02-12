@@ -1,7 +1,62 @@
 [
-  {"id":"web-search","nameKey":"tools.webSearch","descriptionKey":"tools.webSearchDesc"},
-  {"id":"file-reader","nameKey":"tools.fileReader","descriptionKey":"tools.fileReaderDesc"},
-  {"id":"code-runner","nameKey":"tools.codeRunner","descriptionKey":"tools.codeRunnerDesc"},
-  {"id":"image-analyzer","nameKey":"tools.imageAnalyzer","descriptionKey":"tools.imageAnalyzerDesc"},
-  {"id":"ticket-writer","nameKey":"tools.ticketWriter","descriptionKey":"tools.ticketWriterDesc"}
+  {
+    "id": "web-search",
+    "nameKey": "tools.webSearch",
+    "descriptionKey": "tools.webSearchDesc"
+  },
+  {
+    "id": "file-reader",
+    "nameKey": "tools.fileReader",
+    "descriptionKey": "tools.fileReaderDesc"
+  },
+  {
+    "id": "code-runner",
+    "nameKey": "tools.codeRunner",
+    "descriptionKey": "tools.codeRunnerDesc"
+  },
+  {
+    "id": "image-analyzer",
+    "nameKey": "tools.imageAnalyzer",
+    "descriptionKey": "tools.imageAnalyzerDesc"
+  },
+  {
+    "id": "ticket-writer",
+    "nameKey": "tools.ticketWriter",
+    "descriptionKey": "tools.ticketWriterDesc"
+  },
+  {
+    "id": "api-caller",
+    "nameKey": "tools.apiCaller",
+    "descriptionKey": "tools.apiCallerDesc"
+  },
+  {
+    "id": "db-query",
+    "nameKey": "tools.dbQuery",
+    "descriptionKey": "tools.dbQueryDesc"
+  },
+  {
+    "id": "email-sender",
+    "nameKey": "tools.emailSender",
+    "descriptionKey": "tools.emailSenderDesc"
+  },
+  {
+    "id": "pdf-reader",
+    "nameKey": "tools.pdfReader",
+    "descriptionKey": "tools.pdfReaderDesc"
+  },
+  {
+    "id": "chart-generator",
+    "nameKey": "tools.chartGenerator",
+    "descriptionKey": "tools.chartGeneratorDesc"
+  },
+  {
+    "id": "slack-notifier",
+    "nameKey": "tools.slackNotifier",
+    "descriptionKey": "tools.slackNotifierDesc"
+  },
+  {
+    "id": "scheduler",
+    "nameKey": "tools.scheduler",
+    "descriptionKey": "tools.schedulerDesc"
+  }
 ]

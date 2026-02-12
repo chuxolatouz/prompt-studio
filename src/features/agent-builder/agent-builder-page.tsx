@@ -16,6 +16,7 @@ import {agentSpecSchema} from '@/lib/schemas';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {readLocal, storageKeys, writeLocal} from '@/lib/storage';
 import {toast} from 'sonner';
+import {StepHelp} from '@/components/ui/step-help';
 
 type AgentStep = {id: string; step: string; doneCriteria: string};
 
@@ -196,152 +197,263 @@ export function AgentBuilderPage() {
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('agentBuilder.title')}</CardTitle>
-          <CardDescription>{t('agentBuilder.subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('agentBuilder.agentTitle')} />
-            <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t('agentBuilder.agentRole')} />
+    <div className="space-y-6">
+      {/* Sticky Toolbar */}
+      <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold text-slate-800">{title || t('agentBuilder.agentTitle')}</span>
+            <Badge variant="outline">{steps.length} steps</Badge>
+            <Badge variant="outline">{tools.length} tools</Badge>
           </div>
-          <Textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={t('agentBuilder.objective')} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('agentBuilder.inputs')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {inputs.map((input, index) => (
-                <Input
-                  key={index}
-                  value={input}
-                  onChange={(e) => setInputs((prev) => prev.map((item, idx) => (idx === index ? e.target.value : item)))}
-                  placeholder={`${t('agentBuilder.input')} ${index + 1}`}
-                />
-              ))}
-              <Button variant="outline" onClick={() => setInputs((prev) => [...prev, ''])}>
-                {t('actions.add')}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('agentBuilder.steps')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-                <SortableContext items={steps.map((step) => step.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-2">
-                    {steps.map((step) => (
-                      <SortableStep
-                        key={step.id}
-                        step={step}
-                        onChange={(id, field, value) =>
-                          setSteps((prev) => prev.map((item) => (item.id === id ? {...item, [field]: value} : item)))
-                        }
-                        onRemove={(id) => setSteps((prev) => prev.filter((item) => item.id !== id))}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-              <Button className="mt-2" variant="outline" onClick={() => setSteps((prev) => [...prev, {id: crypto.randomUUID(), step: '', doneCriteria: ''}])}>
-                {t('actions.addStep')}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('agentBuilder.tools')}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-2 md:grid-cols-2">
-              {(toolsSeed as Array<any>).map((tool) => (
-                <button
-                  key={tool.id}
-                  onClick={() => toggleTool(tool.id)}
-                  className={`rounded-xl border p-2 text-left ${tools.includes(tool.id) ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
-                >
-                  <p className="text-sm font-semibold">{t(tool.nameKey)}</p>
-                  <p className="text-xs text-slate-600">{t(tool.descriptionKey)}</p>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('agentBuilder.policies')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {policies.map((policy, index) => (
-                <Input
-                  key={index}
-                  value={policy}
-                  onChange={(e) => setPolicies((prev) => prev.map((item, idx) => (idx === index ? e.target.value : item)))}
-                />
-              ))}
-              <Button variant="outline" onClick={() => setPolicies((prev) => [...prev, ''])}>
-                {t('actions.add')}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Textarea value={outputContract} onChange={(e) => setOutputContract(e.target.value)} placeholder={t('agentBuilder.outputContract')} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('agentBuilder.attachSkills')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {availableSkills.length === 0 ? (
-                <p className="text-sm text-slate-600">{t('agentBuilder.noSkills')}</p>
-              ) : (
-                availableSkills.map((skill) => (
-                  <button
-                    key={skill.id}
-                    onClick={() => toggleSkill(skill.id)}
-                    className={`w-full rounded-xl border p-2 text-left ${attachedSkillIds.includes(skill.id) ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
-                  >
-                    <p className="text-sm font-semibold">{skill.name}</p>
-                    <p className="text-xs text-slate-600">{skill.description}</p>
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </CardContent>
-      </Card>
-
-      <Card className="h-fit">
-        <CardHeader>
-          <CardTitle>{t('agentBuilder.outputs')}</CardTitle>
-          <CardDescription>{t('agentBuilder.outputsHelp')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm font-semibold">{t('agentBuilder.agentPrompt')}</p>
-          <Textarea value={agentPrompt} readOnly className="min-h-48" />
-          <p className="text-sm font-semibold">AGENTS.md</p>
-          <Textarea value={agentsMd} readOnly className="min-h-48" />
-          <div className="flex flex-wrap gap-2">
-            {attachedSkills.map((skill) => (
-              <Badge key={skill.id} variant="secondary">
-                {skill.name}
-              </Badge>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button onClick={saveLocal}>{t('actions.saveDraft')}</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={saveLocal}>
+              {t('actions.saveDraft')}
+            </Button>
             <Button variant="secondary" onClick={exportBundle}>
               {t('agentBuilder.exportBundle')}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        {/* Left Column: Vertical Steps */}
+        <div className="space-y-12 pb-20">
+
+          {/* Step 1: Identity */}
+          <div id="step-identity" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">1</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.agentTitle')}</h3>
+              <StepHelp tooltip={t('help.agent.identity')} />
+            </div>
+            <Card glow>
+              <CardContent className="grid gap-3 pt-6 md:grid-cols-2">
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('agentBuilder.agentTitle')} />
+                <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t('agentBuilder.agentRole')} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 2: Objective */}
+          <div id="step-objective" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">2</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.objective')}</h3>
+              <StepHelp tooltip={t('help.agent.objective')} />
+            </div>
+            <Card glow>
+              <CardContent className="pt-6">
+                <Textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={t('agentBuilder.objective')} className="min-h-[120px]" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 3: Inputs */}
+          <div id="step-inputs" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">3</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.inputs')}</h3>
+              <StepHelp tooltip={t('help.agent.inputs')} />
+            </div>
+            <Card glow>
+              <CardContent className="space-y-2 pt-6">
+                {inputs.map((input, index) => (
+                  <Input
+                    key={index}
+                    value={input}
+                    onChange={(e) => setInputs((prev) => prev.map((item, idx) => (idx === index ? e.target.value : item)))}
+                    placeholder={`${t('agentBuilder.input')} ${index + 1}`}
+                  />
+                ))}
+                <Button variant="outline" onClick={() => setInputs((prev) => [...prev, ''])}>
+                  {t('actions.add')}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 4: Steps */}
+          <div id="step-steps" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">4</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.steps')}</h3>
+              <StepHelp tooltip={t('help.agent.steps')} />
+            </div>
+            <Card glow>
+              <CardContent className="pt-6">
+                <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+                  <SortableContext items={steps.map((step) => step.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {steps.map((step) => (
+                        <SortableStep
+                          key={step.id}
+                          step={step}
+                          onChange={(id, field, value) =>
+                            setSteps((prev) => prev.map((item) => (item.id === id ? {...item, [field]: value} : item)))
+                          }
+                          onRemove={(id) => setSteps((prev) => prev.filter((item) => item.id !== id))}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+                <Button className="mt-3" variant="outline" onClick={() => setSteps((prev) => [...prev, {id: crypto.randomUUID(), step: '', doneCriteria: ''}])}>
+                  {t('actions.addStep')}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 5: Tools */}
+          <div id="step-tools" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">5</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.tools')}</h3>
+              <StepHelp tooltip={t('help.agent.tools')} />
+            </div>
+            <Card glow>
+              <CardContent className="grid gap-2 pt-6 md:grid-cols-2">
+                {(toolsSeed as Array<any>).map((tool) => (
+                  <button
+                    key={tool.id}
+                    onClick={() => toggleTool(tool.id)}
+                    className={`rounded-xl border p-3 text-left transition-all ${tools.includes(tool.id) ? 'border-blue-300 bg-blue-50/50 ring-1 ring-blue-300' : 'border-slate-200 bg-white hover:border-blue-200'}`}
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{t(tool.nameKey)}</p>
+                    <p className="text-xs text-slate-500">{t(tool.descriptionKey)}</p>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 6: Policies */}
+          <div id="step-policies" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">6</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.policies')}</h3>
+              <StepHelp tooltip={t('help.agent.policies')} />
+            </div>
+            <Card glow>
+              <CardContent className="space-y-2 pt-6">
+                {policies.map((policy, index) => (
+                  <Input
+                    key={index}
+                    value={policy}
+                    onChange={(e) => setPolicies((prev) => prev.map((item, idx) => (idx === index ? e.target.value : item)))}
+                  />
+                ))}
+                <Button variant="outline" onClick={() => setPolicies((prev) => [...prev, ''])}>
+                  {t('actions.add')}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 7: Output Contract */}
+          <div id="step-output" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">7</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.outputContract')}</h3>
+              <StepHelp tooltip={t('help.agent.outputContract')} />
+            </div>
+            <Card glow>
+              <CardContent className="pt-6">
+                <Textarea value={outputContract} onChange={(e) => setOutputContract(e.target.value)} placeholder={t('agentBuilder.outputContract')} className="min-h-[120px]" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 8: Attach Skills */}
+          <div id="step-skills" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">8</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.attachSkills')}</h3>
+              <StepHelp tooltip={t('help.agent.attachSkills')} />
+            </div>
+            <Card glow>
+              <CardContent className="space-y-2 pt-6">
+                {availableSkills.length === 0 ? (
+                  <div className="flex h-20 items-center justify-center rounded-xl border border-dashed text-sm text-slate-400">
+                    {t('agentBuilder.noSkills')}
+                  </div>
+                ) : (
+                  availableSkills.map((skill) => (
+                    <button
+                      key={skill.id}
+                      onClick={() => toggleSkill(skill.id)}
+                      className={`w-full rounded-xl border p-3 text-left transition-all ${attachedSkillIds.includes(skill.id) ? 'border-blue-300 bg-blue-50/50 ring-1 ring-blue-300' : 'border-slate-200 bg-white hover:border-blue-200'}`}
+                    >
+                      <p className="text-sm font-semibold text-slate-900">{skill.name}</p>
+                      <p className="text-xs text-slate-500">{skill.description}</p>
+                    </button>
+                  ))
+                )}
+                {attachedSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-2">
+                    {attachedSkills.map((skill) => (
+                      <Badge key={skill.id} variant="secondary">{skill.name}</Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Right Column: Sticky Preview */}
+        <div className="hidden lg:block">
+          <div className="sticky top-[140px] space-y-4">
+            <Card glow className="border-blue-100 bg-white shadow-lg">
+              <CardHeader className="bg-slate-50/50 pb-3">
+                <CardTitle className="text-sm">{t('agentBuilder.agentPrompt')}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <pre className="max-h-[300px] overflow-y-auto whitespace-pre-wrap p-4 text-xs text-slate-700">
+                  {agentPrompt}
+                </pre>
+              </CardContent>
+            </Card>
+
+            <Card glow className="border-blue-100 bg-white shadow-lg">
+              <CardHeader className="bg-slate-50/50 pb-3">
+                <CardTitle className="text-sm">AGENTS.md</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <pre className="max-h-[250px] overflow-y-auto whitespace-pre-wrap p-4 text-xs text-slate-700">
+                  {agentsMd}
+                </pre>
+              </CardContent>
+              <div className="flex gap-2 border-t border-slate-100 p-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(agentPrompt);
+                    toast.success(t('actions.copied'));
+                  }}
+                >
+                  {t('actions.copy')} Prompt
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(agentsMd);
+                    toast.success(t('actions.copied'));
+                  }}
+                >
+                  {t('actions.copy')} AGENTS.md
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -18,6 +18,8 @@ function buildSkillMarkdown(skill: SkillPack['skills'][number]) {
   return `---\nname: "${skill.name}"\ndescription: "${skill.description}"\ntags: [${skill.tags.map((tag) => `"${tag}"`).join(', ')}]\nversion: "0.1"\nlanguage: "${skill.language}"\n---\n\n${skill.markdown}`;
 }
 
+import {StepHelp} from '@/components/ui/step-help';
+
 export function SkillBuilderPage() {
   const t = useTranslations();
   const [pack, setPack] = useState<SkillPack>(() => {
@@ -120,119 +122,195 @@ export function SkillBuilderPage() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('skillBuilder.title')}</CardTitle>
-          <CardDescription>{t('skillBuilder.subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input value={pack.title} onChange={(e) => setPack((prev) => ({...prev, title: e.target.value}))} placeholder={t('skillBuilder.packTitle')} />
-          <Textarea value={pack.description} onChange={(e) => setPack((prev) => ({...prev, description: e.target.value}))} placeholder={t('skillBuilder.packDescription')} />
-          <Select value={pack.visibility} onValueChange={(value: 'public' | 'private') => setPack((prev) => ({...prev, visibility: value}))}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="private">{t('visibility.private')}</SelectItem>
-              <SelectItem value="public">{t('visibility.public')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="space-y-2">
-            <Button onClick={addSkill} className="w-full">
-              {t('skillBuilder.addSkill')}
-            </Button>
-            <Button variant="outline" onClick={saveLocal} className="w-full">
+    <div className="space-y-6">
+      {/* Sticky Toolbar */}
+      <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold text-slate-800">{pack.title || t('skillBuilder.packTitle')}</span>
+            <Badge variant="outline">{pack.skills.length} skills</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={saveLocal}>
               {t('actions.saveDraft')}
             </Button>
-            <Button variant="secondary" onClick={exportZip} className="w-full">
+            <Button variant="secondary" onClick={exportZip}>
               {t('skillBuilder.downloadPack')}
             </Button>
           </div>
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            {pack.skills.length === 0 ? (
-              <p className="text-sm text-slate-600">{t('skillBuilder.empty')}</p>
-            ) : (
-              pack.skills.map((skill) => (
-                <button
-                  key={skill.id}
-                  onClick={() => setSelectedSkillId(skill.id)}
-                  className={`w-full rounded-xl border p-2 text-left ${selectedSkillId === skill.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
-                >
-                  <p className="text-sm font-semibold">{skill.name}</p>
-                  <p className="text-xs text-slate-500">{skill.description || t('skillBuilder.noDescription')}</p>
-                </button>
-              ))
-            )}
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        {/* Left Column: Vertical Steps */}
+        <div className="space-y-12 pb-20">
+          
+          {/* Step 1: Pack Info */}
+          <div id="step-pack-info" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">1</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('skillBuilder.packTitle')}</h3>
+              <StepHelp tooltip={t('help.skill.packInfo')} />
+            </div>
+            <Card glow>
+              <CardContent className="space-y-3 pt-6">
+                <Input value={pack.title} onChange={(e) => setPack((prev) => ({...prev, title: e.target.value}))} placeholder={t('skillBuilder.packTitle')} />
+                <Textarea value={pack.description} onChange={(e) => setPack((prev) => ({...prev, description: e.target.value}))} placeholder={t('skillBuilder.packDescription')} />
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-700">Visibility:</span>
+                  <Select value={pack.visibility} onValueChange={(value: 'public' | 'private') => setPack((prev) => ({...prev, visibility: value}))}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">{t('visibility.private')}</SelectItem>
+                      <SelectItem value="public">{t('visibility.public')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('skillBuilder.editor')}</CardTitle>
-          <CardDescription>{t('skillBuilder.editorHelp')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {!selectedSkill ? (
-            <p className="text-sm text-slate-600">{t('skillBuilder.selectSkill')}</p>
-          ) : (
-            <>
-              <div className="grid gap-3 md:grid-cols-2">
-                <Input value={selectedSkill.name} onChange={(e) => updateSkill({name: e.target.value})} placeholder={t('common.name')} />
-                <Input
-                  value={selectedSkill.description}
-                  onChange={(e) => updateSkill({description: e.target.value})}
-                  placeholder={t('common.description')}
-                />
-                <Input
-                  value={selectedSkill.tags.join(', ')}
-                  onChange={(e) => updateSkill({tags: e.target.value.split(',').map((tag) => tag.trim()).filter(Boolean)})}
-                  placeholder={t('common.tags')}
-                />
-                <Select value={selectedSkill.language} onValueChange={(value: 'es' | 'en' | 'both') => updateSkill({language: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="es">ES</SelectItem>
-                    <SelectItem value="en">EN</SelectItem>
-                    <SelectItem value="both">Both</SelectItem>
-                  </SelectContent>
-                </Select>
+          {/* Step 2: Skills List */}
+          <div id="step-skills" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">2</div>
+              <h3 className="text-lg font-bold text-slate-800">{t('nav.skillBuilder')}</h3>
+              <StepHelp tooltip={t('help.skill.skillList')} />
+            </div>
+            <Card glow>
+              <CardContent className="space-y-3 pt-6">
+                <div className="space-y-2">
+                  {pack.skills.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center text-slate-500">
+                      <p className="mb-2">{t('skillBuilder.empty')}</p>
+                      <Button onClick={addSkill}>{t('skillBuilder.addSkill')}</Button>
+                    </div>
+                  ) : (
+                    pack.skills.map((skill) => (
+                      <button
+                        key={skill.id}
+                        onClick={() => setSelectedSkillId(skill.id)}
+                        className={`w-full rounded-xl border p-3 text-left transition-all ${
+                          selectedSkillId === skill.id ? 'border-blue-300 bg-blue-50/50 ring-1 ring-blue-300' : 'border-slate-200 bg-white hover:border-blue-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold text-slate-900">{skill.name}</p>
+                          {selectedSkillId === skill.id && <Badge variant="secondary">Editing</Badge>}
+                        </div>
+                        <p className="line-clamp-1 text-xs text-slate-500">{skill.description || t('skillBuilder.noDescription')}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+                {pack.skills.length > 0 && (
+                  <Button variant="outline" onClick={addSkill} className="w-full">
+                    {t('skillBuilder.addSkill')}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Step 3: Editor */}
+          {selectedSkill && (
+            <div id="step-editor" className="scroll-mt-24 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">3</div>
+                <h3 className="text-lg font-bold text-slate-800">{t('skillBuilder.editor')}</h3>
+                <StepHelp tooltip={t('help.skill.editor')} />
               </div>
-
-              <Textarea value={selectedSkill.markdown} onChange={(e) => updateSkill({markdown: e.target.value})} className="min-h-[280px]" />
-              <div className="flex flex-wrap gap-2">
-                {selectedSkill.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => duplicateSkill(selectedSkill.id)}>
-                  {t('actions.duplicate')}
-                </Button>
-                <Button variant="destructive" onClick={() => deleteSkill(selectedSkill.id)}>
-                  {t('actions.delete')}
-                </Button>
-              </div>
-
-              <Card className="border-dashed">
-                <CardHeader>
-                  <CardTitle className="text-base">SKILL.md</CardTitle>
+              <Card glow className="border-blue-200 bg-white">
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Editing: {selectedSkill.name}</CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => duplicateSkill(selectedSkill.id)}>
+                        {t('actions.duplicate')}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => deleteSkill(selectedSkill.id)}>
+                        {t('actions.delete')}
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <pre className="overflow-x-auto whitespace-pre-wrap text-xs text-slate-700">{buildSkillMarkdown(selectedSkill)}</pre>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Input value={selectedSkill.name} onChange={(e) => updateSkill({name: e.target.value})} placeholder={t('common.name')} />
+                    <Input
+                      value={selectedSkill.description}
+                      onChange={(e) => updateSkill({description: e.target.value})}
+                      placeholder={t('common.description')}
+                    />
+                    <Input
+                      value={selectedSkill.tags.join(', ')}
+                      onChange={(e) => updateSkill({tags: e.target.value.split(',').map((tag) => tag.trim()).filter(Boolean)})}
+                      placeholder={t('common.tags')}
+                    />
+                    <Select value={selectedSkill.language} onValueChange={(value: 'es' | 'en' | 'both') => updateSkill({language: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="es">ES</SelectItem>
+                        <SelectItem value="en">EN</SelectItem>
+                        <SelectItem value="both">Both</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Markdown Content</span>
+                      <StepHelp tooltip={t('help.skill.markdown')} />
+                    </div>
+                    <Textarea value={selectedSkill.markdown} onChange={(e) => updateSkill({markdown: e.target.value})} className="min-h-[300px] font-mono text-sm" />
+                  </div>
                 </CardContent>
               </Card>
-            </>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Right Column: Preview */}
+        <div className="hidden lg:block">
+          <div className="sticky top-[140px] space-y-4">
+            <Card glow className="border-blue-100 bg-white shadow-lg">
+              <CardHeader className="bg-slate-50/50 pb-3">
+                <CardTitle className="text-sm">Preview: SKILL.md</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {selectedSkill ? (
+                  <pre className="max-h-[600px] overflow-y-auto whitespace-pre-wrap p-4 text-xs text-slate-700">
+                    {buildSkillMarkdown(selectedSkill)}
+                  </pre>
+                ) : (
+                  <div className="flex h-40 items-center justify-center p-4 text-sm text-slate-400">
+                    {t('skillBuilder.selectSkill')}
+                  </div>
+                )}
+              </CardContent>
+              {selectedSkill && (
+                <div className="border-t border-slate-100 p-3">
+                   <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(buildSkillMarkdown(selectedSkill));
+                        toast.success(t('actions.copied'));
+                      }}
+                    >
+                      {t('actions.copy')}
+                    </Button>
+                </div>
+              )}
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

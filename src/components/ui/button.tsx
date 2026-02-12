@@ -11,9 +11,9 @@ const buttonVariants = cva(
         default:
           'bg-[color:var(--prompteero-blue)] text-white hover:bg-[#12548c] focus-visible:ring-[color:var(--prompteero-blue)]',
         secondary:
-          'bg-[color:var(--prompteero-light)] text-[color:var(--prompteero-dark)] hover:bg-[#d8d8d8]',
-        outline: 'border border-[color:var(--prompteero-light)] bg-white text-[color:var(--prompteero-dark)] hover:bg-slate-50',
-        ghost: 'text-[color:var(--prompteero-mid)] hover:bg-slate-100',
+          'bg-slate-800 text-white hover:bg-slate-700',
+        outline: 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50',
+        ghost: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
         destructive: 'bg-red-600 text-white hover:bg-red-700',
       },
       size: {

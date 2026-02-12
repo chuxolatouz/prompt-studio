@@ -23,6 +23,7 @@ import {storageKeys, readLocal, writeLocal} from '@/lib/storage';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {getSupabaseBrowserClient, supabaseEnabled} from '@/lib/supabase';
 import {toast} from 'sonner';
+import {StepHelp} from '@/components/ui/step-help';
 
 type SeedBlock = {
   id: string;
@@ -544,7 +545,10 @@ export function PromptBuilderPage() {
             {/* Project Info Card */}
             <Card glow className="border-blue-100 bg-blue-50/50">
               <CardHeader>
-                <CardTitle className="text-base">{t('promptBuilder.promptDetails')}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">{t('promptBuilder.promptDetails')}</CardTitle>
+                  <StepHelp tooltip={t('help.prompt.details')} />
+                </div>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <Input
@@ -604,6 +608,7 @@ export function PromptBuilderPage() {
                         {index + 1}
                       </div>
                       <h3 className="text-lg font-bold text-slate-800">{column.title}</h3>
+                      <StepHelp tooltip={t(`help.prompt.${column.id}`)} />
                     </div>
 
                     <Card glow className="overflow-hidden">
