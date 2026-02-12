@@ -137,7 +137,7 @@ create policy "owner crud agents" on agents for all using (auth.uid() = owner_id
 create policy "create reports" on reports for insert with check (true);
 ```
 
-## Definition of Done (MVP 0.1)
+## Definition of Done (MVP v1)
 - [x] Landing keeps existing style and uses Builders-focused CTAs.
 - [x] Navbar uses one **Builders** item (desktop dropdown + mobile expandable menu).
 - [x] `/builders` hub exists with 3 cards.
@@ -153,3 +153,6 @@ create policy "create reports" on reports for insert with check (true);
 - [x] Auth email/password + profile upsert (`users_profile`) on session.
 - [x] App works in local-only mode without Supabase.
 - [x] No model API calls.
+- [x] Navbar compacted to ~40px height.
+- [x] Siri-style rainbow glow on feature cards.
+- [x] Button contrast improved (navbar active links use blue bg + white text).

@@ -1,8 +1,8 @@
 import * as React from 'react';
 import {cn} from '@/lib/utils';
 
-export function Card({className, ...props}: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('rounded-2xl border border-slate-200 bg-white shadow-sm', className)} {...props} />;
+export function Card({className, glow, ...props}: React.HTMLAttributes<HTMLDivElement> & {glow?: boolean}) {
+  return <div className={cn('rounded-2xl border border-slate-200 bg-white shadow-sm', glow && 'siri-glow', className)} {...props} />;
 }
 
 export function CardHeader({className, ...props}: React.HTMLAttributes<HTMLDivElement>) {

@@ -35,7 +35,7 @@ export default async function Home() {
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <Card key={card.key}>
+            <Card key={card.key} glow>
               <CardHeader>
                 <Icon className="h-10 w-10 text-blue-600" />
                 <CardTitle>{t(`${card.key}.title`)}</CardTitle>
@@ -55,7 +55,7 @@ export default async function Home() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card glow>
           <CardHeader>
             <Sparkles className="h-10 w-10 text-emerald-600" />
             <CardTitle>{t('landing.structures.title')}</CardTitle>
@@ -67,7 +67,7 @@ export default async function Home() {
             </Button>
           </CardContent>
         </Card>
-        <Card>
+        <Card glow>
           <CardHeader>
             <WandSparkles className="h-10 w-10 text-orange-600" />
             <CardTitle>{t('landing.builders.title')}</CardTitle>

@@ -32,7 +32,7 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Providers>
             <SiteHeader />
-            <main className="mx-auto min-h-[calc(100vh-64px)] w-full max-w-7xl px-4 py-6">{children}</main>
+            <main className="mx-auto min-h-[calc(100vh-44px)] w-full max-w-7xl px-4 py-6">{children}</main>
           </Providers>
         </NextIntlClientProvider>
       </body>

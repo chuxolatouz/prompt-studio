@@ -34,10 +34,10 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[color:var(--prompteero-light)] bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-1.5">
         <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-          <Logo variant="icon" size={36} className="sm:hidden" priority />
-          <Logo variant="full" size={164} className="hidden sm:block" priority />
+          <Logo variant="icon" size={28} className="sm:hidden" priority />
+          <Logo variant="full" size={120} className="hidden sm:block" priority />
         </Link>
 
         <nav className="hidden items-center gap-2 lg:flex">
@@ -45,7 +45,7 @@ export function SiteHeader() {
             href="/"
             className={cn(
               'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
-              pathname === '/' ? 'bg-blue-100 text-[color:var(--prompteero-blue)]' : 'hover:bg-slate-100'
+              pathname === '/' ? 'bg-[color:var(--prompteero-blue)] text-white' : 'hover:bg-slate-100'
             )}
           >
             {t('nav.home')}
@@ -59,7 +59,7 @@ export function SiteHeader() {
                 className={cn(
                   'h-8 px-2 text-sm text-[color:var(--prompteero-dark)]',
                   builderLinks.some((link) => pathname === link.href) || pathname === '/builders'
-                    ? 'bg-blue-100 text-[color:var(--prompteero-blue)] hover:bg-blue-100'
+                    ? 'bg-[color:var(--prompteero-blue)] text-white hover:bg-[color:var(--prompteero-blue)]'
                     : 'hover:bg-slate-100'
                 )}
               >
@@ -85,7 +85,7 @@ export function SiteHeader() {
               href={link.href}
               className={cn(
                 'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
-                pathname === link.href ? 'bg-blue-100 text-[color:var(--prompteero-blue)]' : 'hover:bg-slate-100'
+                pathname === link.href ? 'bg-[color:var(--prompteero-blue)] text-white' : 'hover:bg-slate-100'
               )}
             >
               {t(link.key)}
@@ -97,7 +97,7 @@ export function SiteHeader() {
                 href="/dashboard"
                 className={cn(
                   'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
-                  pathname === '/dashboard' ? 'bg-blue-100 text-[color:var(--prompteero-blue)]' : 'hover:bg-slate-100'
+                  pathname === '/dashboard' ? 'bg-[color:var(--prompteero-blue)] text-white' : 'hover:bg-slate-100'
                 )}
               >
                 {t('nav.dashboard')}
@@ -114,7 +114,7 @@ export function SiteHeader() {
               href="/auth"
               className={cn(
                 'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
-                pathname === '/auth' ? 'bg-blue-100 text-[color:var(--prompteero-blue)]' : 'hover:bg-slate-100'
+                pathname === '/auth' ? 'bg-[color:var(--prompteero-blue)] text-white' : 'hover:bg-slate-100'
               )}
             >
               {t('nav.auth')}

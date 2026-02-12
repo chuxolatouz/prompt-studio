@@ -41,7 +41,7 @@ export async function BuildersHubPage() {
         {items.map((item) => {
           const Icon = item.icon;
           return (
-            <Card key={item.href}>
+            <Card key={item.href} glow>
               <CardHeader>
                 <Icon className="h-10 w-10 text-blue-600" />
                 <CardTitle>{item.title}</CardTitle>

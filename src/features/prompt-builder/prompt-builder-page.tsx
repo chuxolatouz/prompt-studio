@@ -371,6 +371,28 @@ export function PromptBuilderPage() {
         if (!source || !target) return prev;
         const moving = source.items[from.index];
 
+        // Auto-scroll to next step after drop
+        setTimeout(() => {
+          const currentStageIndex = prev.columns
+            .filter((col) => {
+               if (col.id === 'constraints' && prev.antiHallucination) return true;
+               const activeStructure = structures.find((s) => s.id === prev.structure);
+               return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
+            })
+            .findIndex((c) => c.id === target.id);
+            
+          const nextStage = prev.columns
+            .filter((col) => {
+               if (col.id === 'constraints' && prev.antiHallucination) return true;
+               const activeStructure = structures.find((s) => s.id === prev.structure);
+               return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
+            })[currentStageIndex + 1];
+
+          if (nextStage) {
+            document.getElementById(`step-${nextStage.id}`)?.scrollIntoView({behavior: 'smooth', block: 'center'});
+          }
+        }, 100);
+
         return {
           ...prev,
           columns: prev.columns.map((column) => {
@@ -465,84 +487,30 @@ export function PromptBuilderPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('promptBuilder.title')}</CardTitle>
-            <CardDescription>{t('promptBuilder.subtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <Input placeholder={t('promptBuilder.promptTitle')} value={state.title} onChange={(e) => setState((prev) => ({...prev, title: e.target.value}))} />
-            <Select value={state.structure} onValueChange={(value) => applyStructureMacro(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('promptBuilder.structure')} />
-              </SelectTrigger>
-              <SelectContent>
-                {structures.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={state.role || ''} onValueChange={(value) => setState((prev) => ({...prev, role: value}))}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('promptBuilder.role')} />
-              </SelectTrigger>
-              <SelectContent>
-                {(rolesSeed as Array<{id: string; labelKey: string}>).map((item) => (
-                  <SelectItem key={item.id} value={t(item.labelKey)}>
-                    {t(item.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={() => applyStructureMacro(state.structure, true)}>
-              {t('promptBuilder.applyMacro')}
-            </Button>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 text-sm md:col-span-2">
-              <span>{t('promptBuilder.antiHallucination')}</span>
-              <Switch
-                checked={state.antiHallucination}
-                onCheckedChange={(value) =>
-                  setState((prev) => ({
-                    ...prev,
-                    antiHallucination: value,
-                    columns: ensureAntiHallucination(prev.columns, value),
-                  }))
-                }
-              />
-              <Badge variant={state.antiHallucination ? 'default' : 'secondary'}>{state.antiHallucination ? 'ON' : 'OFF'}</Badge>
-              <Button size="sm" variant="ghost" onClick={resetAntiHallucination}>
-                {t('promptBuilder.reset')}
-              </Button>
+    <div className="space-y-6">
+      {/* Sticky Toolbar */}
+      <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-700">{t('promptBuilder.structure')}</span>
+              <Select value={state.structure} onValueChange={(value) => applyStructureMacro(value)}>
+                <SelectTrigger className="w-[140px] md:w-[180px]">
+                  <SelectValue placeholder={t('promptBuilder.structure')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {structures.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('promptBuilder.steps')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-slate-700">
-            <p>{t('promptBuilder.step1')}</p>
-            <p>{t('promptBuilder.step2')}</p>
-            <p>{t('promptBuilder.step3')}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="grid gap-4 xl:grid-cols-[280px_1fr_380px]">
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle>{t('promptBuilder.palette')}</CardTitle>
-              <CardDescription>{t('promptBuilder.paletteHelp')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input placeholder={t('common.search')} value={search} onChange={(e) => setSearch(e.target.value)} />
+            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
+            <div className="flex items-center gap-2">
               <Select value={state.niche ?? 'all'} onValueChange={(value) => setState((prev) => ({...prev, niche: value}))}>
-                <SelectTrigger>
+                <SelectTrigger className="w-[130px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -552,103 +520,213 @@ export function PromptBuilderPage() {
                   <SelectItem value="videos">Videos</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={structureFilter} onValueChange={setStructureFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('filters.allStructures')}</SelectItem>
-                  {structures.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="space-y-2">
-                {filteredBlocks.map((block) => (
-                  <PaletteDraggable key={block.id} id={`palette-${block.id}`}>
-                    <Card className={`cursor-grab overflow-hidden border-slate-200 ${activeDragId === `palette-${block.id}` ? 'opacity-60' : ''}`}>
-                      <div className="relative h-24 w-full">
-                        <Image src={block.image} alt={t(block.titleKey)} fill className="object-cover" sizes="260px" />
+            </div>
+          </div>
+
+          <div className="flex flex-1 items-center justify-end gap-3">
+            <Input
+              placeholder={t('common.search')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-[200px]"
+            />
+            <Button variant="outline" onClick={() => applyStructureMacro(state.structure, true)}>
+              {t('promptBuilder.applyMacro')}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+          {/* Left Column: Vertical Steps */}
+          <div className="space-y-12 pb-20">
+            {/* Project Info Card */}
+            <Card glow className="border-blue-100 bg-blue-50/50">
+              <CardHeader>
+                <CardTitle className="text-base">{t('promptBuilder.promptDetails')}</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Input
+                  placeholder={t('promptBuilder.promptTitle')}
+                  value={state.title}
+                  onChange={(e) => setState((prev) => ({...prev, title: e.target.value}))}
+                  className="bg-white"
+                />
+                <Select value={state.role || ''} onValueChange={(value) => setState((prev) => ({...prev, role: value}))}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder={t('promptBuilder.role')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(rolesSeed as Array<{id: string; labelKey: string}>).map((item) => (
+                      <SelectItem key={item.id} value={t(item.labelKey)}>
+                        {t(item.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2 md:col-span-2">
+                  <span className="text-sm font-medium text-slate-700">{t('promptBuilder.antiHallucination')}</span>
+                  <Switch
+                    checked={state.antiHallucination}
+                    onCheckedChange={(value) =>
+                      setState((prev) => ({
+                        ...prev,
+                        antiHallucination: value,
+                        columns: ensureAntiHallucination(prev.columns, value),
+                      }))
+                    }
+                  />
+                  <Badge variant={state.antiHallucination ? 'default' : 'secondary'}>
+                    {state.antiHallucination ? 'ON' : 'OFF'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Dynamic Stages based on Structure */}
+            {state.columns
+              .filter((col) => {
+                // Only show columns relevant to current structure (plus constraints/anti-hallucination if active)
+                if (col.id === 'constraints' && state.antiHallucination) return true;
+                const activeStructure = structures.find((s) => s.id === state.structure);
+                return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
+              })
+              .map((column, index) => {
+                const stepBlocks = filteredBlocks.filter(
+                  (b) => b.targetColumn === column.id || (column.id === 'constraints' && b.targetColumn === 'constraints')
+                );
+
+                return (
+                  <div key={column.id} id={`step-${column.id}`} className="scroll-mt-24 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                        {index + 1}
                       </div>
-                      <div className="p-3">
-                        <p className="text-sm font-semibold">{t(block.titleKey)}</p>
-                        <p className="text-xs text-slate-600">{t(block.contentKey)}</p>
-                        <div className="mt-2 flex gap-2">
-                          <Badge variant="secondary">{block.level}</Badge>
-                          <Badge variant="outline">{block.structure}</Badge>
+                      <h3 className="text-lg font-bold text-slate-800">{column.title}</h3>
+                    </div>
+
+                    <Card glow className="overflow-hidden">
+                      <div className="border-b border-slate-100 bg-slate-50/50 px-4 py-3">
+                        <p className="mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          {t('promptBuilder.palette')} ({stepBlocks.length})
+                        </p>
+                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                          {stepBlocks.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic py-2">No suggested blocks for this step</p>
+                          ) : (
+                            stepBlocks.map((block) => (
+                              <PaletteDraggable key={block.id} id={`palette-${block.id}`}>
+                                <div
+                                  className={`relative w-40 flex-shrink-0 cursor-grab rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md ${
+                                    activeDragId === `palette-${block.id}` ? 'opacity-50' : ''
+                                  }`}
+                                >
+                                  <div className="relative mb-2 h-20 w-full overflow-hidden rounded-lg">
+                                    <Image
+                                      src={block.image}
+                                      alt={t(block.titleKey)}
+                                      fill
+                                      className="object-cover"
+                                      sizes="160px"
+                                    />
+                                  </div>
+                                  <p className="line-clamp-1 text-xs font-semibold text-slate-800">{t(block.titleKey)}</p>
+                                  <p className="line-clamp-1 text-[10px] text-slate-500">{t(block.contentKey)}</p>
+                                </div>
+                              </PaletteDraggable>
+                            ))
+                          )}
                         </div>
                       </div>
+
+                      <CardContent className="p-4">
+                        <DropColumn
+                          column={column}
+                          onChange={(itemId, content) =>
+                            setState((prev) => ({
+                              ...prev,
+                              columns: prev.columns.map((entry) => ({
+                                ...entry,
+                                items: entry.items.map((item) => (item.id === itemId ? {...item, content} : item)),
+                              })),
+                            }))
+                          }
+                        />
+                      </CardContent>
                     </Card>
-                  </PaletteDraggable>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                );
+              })}
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('promptBuilder.canvas')}</CardTitle>
-              <CardDescription>{t('promptBuilder.canvasHelp')}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              {state.columns.map((column) => (
-                <DropColumn
-                  key={column.id}
-                  column={column}
-                  onChange={(itemId, content) =>
-                    setState((prev) => ({
-                      ...prev,
-                      columns: prev.columns.map((entry) => ({
-                        ...entry,
-                        items: entry.items.map((item) => (item.id === itemId ? {...item, content} : item)),
-                      })),
-                    }))
-                  }
-                />
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle>{t('promptBuilder.preview')}</CardTitle>
-              <CardDescription>{t('promptBuilder.livePreview')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Textarea value={composedPrompt} readOnly className="min-h-[420px]" />
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(composedPrompt);
-                    toast.success(t('actions.copied'));
-                  }}
-                >
-                  {t('actions.copy')}
-                </Button>
-                <Button variant="secondary" onClick={() => downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown')}>
-                  {t('actions.exportMd')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => downloadBlob(`${slugify(state.title || 'prompt')}.json`, JSON.stringify({...state, output: composedPrompt}, null, 2), 'application/json')}
-                >
-                  {t('actions.exportJson')}
-                </Button>
-                <Button variant="secondary" onClick={exportZip}>
-                  {t('actions.exportZip')}
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button onClick={handlePublish}>{t('actions.publish')}</Button>
-                <Button variant="outline" onClick={saveDraft}>
-                  {t('actions.saveDraft')}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Right Column: Sticky Preview */}
+          <div className="hidden lg:block">
+            <div className="sticky top-[140px] space-y-4">
+              <Card glow className="border-blue-100 bg-white shadow-lg">
+                <CardHeader className="bg-slate-50/50 pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">{t('promptBuilder.preview')}</CardTitle>
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      {state.structure}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Textarea
+                    value={composedPrompt}
+                    readOnly
+                    className="min-h-[500px] resize-none rounded-none border-0 px-4 py-4 focus-visible:ring-0"
+                  />
+                </CardContent>
+                <div className="border-t border-slate-100 p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(composedPrompt);
+                        toast.success(t('actions.copied'));
+                      }}
+                    >
+                      {t('actions.copy')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown')}
+                    >
+                      {t('actions.exportMd')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        downloadBlob(
+                          `${slugify(state.title || 'prompt')}.json`,
+                          JSON.stringify({...state, output: composedPrompt}, null, 2),
+                          'application/json'
+                        )
+                      }
+                    >
+                      {t('actions.exportJson')}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportZip}>
+                      {t('actions.exportZip')}
+                    </Button>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    <Button onClick={handlePublish} className="w-full">
+                      {t('actions.publish')}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={saveDraft} className="w-full text-slate-400 hover:text-slate-600">
+                      {t('actions.saveDraft')}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
         </div>
       </DndContext>
     </div>
