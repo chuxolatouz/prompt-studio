@@ -50,7 +50,8 @@
     "structures": "Estructuras",
     "gallery": "Galería",
     "dashboard": "Dashboard",
-    "auth": "Login"
+    "auth": "Login",
+    "authSection": "Acceso"
   },
   "filters": {
     "allNiches": "Todos los nichos",

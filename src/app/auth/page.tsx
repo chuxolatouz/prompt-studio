@@ -1,7 +1,8 @@
 'use client';
 
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useTranslations} from 'next-intl';
+import {usePathname, useRouter, useSearchParams} from 'next/navigation';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
@@ -11,10 +12,24 @@ import {toast} from 'sonner';
 
 export default function AuthPage() {
   const t = useTranslations();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {user, signIn, signUp, signOut, loading} = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const queryMode = searchParams.get('mode');
+  const [mode, setMode] = useState<'login' | 'register'>(queryMode === 'register' ? 'register' : 'login');
+
+  useEffect(() => {
+    if (queryMode === 'register') {
+      setMode('register');
+      return;
+    }
+    if (queryMode === 'login') {
+      setMode('login');
+    }
+  }, [queryMode]);
 
   if (!featureFlags.supabase) {
     return (
@@ -60,10 +75,22 @@ export default function AuthPage() {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          <Button variant={mode === 'login' ? 'default' : 'outline'} onClick={() => setMode('login')}>
+          <Button
+            variant={mode === 'login' ? 'default' : 'outline'}
+            onClick={() => {
+              setMode('login');
+              router.replace(`${pathname}?mode=login`);
+            }}
+          >
             {t('auth.login')}
           </Button>
-          <Button variant={mode === 'register' ? 'default' : 'outline'} onClick={() => setMode('register')}>
+          <Button
+            variant={mode === 'register' ? 'default' : 'outline'}
+            onClick={() => {
+              setMode('register');
+              router.replace(`${pathname}?mode=register`);
+            }}
+          >
             {t('auth.register')}
           </Button>
         </div>

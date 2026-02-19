@@ -9,11 +9,12 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-[color:var(--prompteero-blue)] text-white hover:bg-[#12548c] focus-visible:ring-[color:var(--prompteero-blue)]',
+          'bg-[color:var(--prompteero-blue)] text-white hover:bg-[#0f4f87] focus-visible:ring-[color:var(--prompteero-blue)]',
         secondary:
-          'bg-slate-800 text-white hover:bg-slate-700',
-        outline: 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50',
-        ghost: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+          'bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-900',
+        outline:
+          'border border-slate-500 bg-white text-slate-900 hover:border-slate-700 hover:bg-slate-100 focus-visible:ring-slate-700',
+        ghost: 'text-slate-800 hover:bg-slate-200 hover:text-slate-950',
         destructive: 'bg-red-600 text-white hover:bg-red-700',
       },
       size: {
