@@ -2,14 +2,13 @@
 
 import {useState} from 'react';
 import Link from 'next/link';
-import {Menu, Wrench} from 'lucide-react';
+import {Menu} from 'lucide-react';
 import {usePathname} from 'next/navigation';
 import {useTranslations} from 'next-intl';
 import {cn} from '@/lib/utils';
 import {LocaleSwitcher} from '@/components/layout/locale-switcher';
 import {Logo} from '@/components/layout/logo';
 import {Button} from '@/components/ui/button';
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {useAuth} from '@/features/common/auth-context';
 
 const builderLinks = [
@@ -29,63 +28,26 @@ export function SiteHeader() {
   const t = useTranslations();
   const {user, profileName, signOut, loading} = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mobileBuildersOpen, setMobileBuildersOpen] = useState(false);
-  const userLabel = profileName || user?.email || 'Cuenta';
+  const userLabel = profileName || user?.email || t('common.account');
 
   return (
     <header className="sticky top-0 z-40 border-b border-[color:var(--prompteero-light)] bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-1.5">
-        <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2">
+        <Link href="/" className="flex items-center gap-2 rounded-lg px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--prompteero-blue)]" onClick={() => setMobileOpen(false)}>
           <Logo variant="icon" size={28} className="sm:hidden" priority />
           <Logo variant="full" size={120} className="hidden sm:block" priority />
         </Link>
 
-        <nav className="hidden items-center gap-2 lg:flex">
-          <Link
-            href="/"
-            className={cn(
-              'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
-              pathname === '/' ? 'bg-[color:var(--prompteero-blue)] text-white' : 'hover:bg-slate-100'
-            )}
-          >
-            {t('nav.home')}
-          </Link>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'h-8 px-2 text-sm text-[color:var(--prompteero-dark)]',
-                  builderLinks.some((link) => pathname === link.href) || pathname === '/builders'
-                    ? 'bg-[color:var(--prompteero-blue)] text-white hover:bg-[color:var(--prompteero-blue)]'
-                    : 'hover:bg-slate-100'
-                )}
-              >
-                <Wrench className="mr-1 h-4 w-4" />
-                {t('nav.builders')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem asChild>
-                <Link href="/builders">{t('nav.openBuilders')}</Link>
-              </DropdownMenuItem>
-              {builderLinks.map((link) => (
-                <DropdownMenuItem key={link.href} asChild>
-                  <Link href={link.href}>{t(link.key)}</Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {mainLinks.slice(1).map((link) => (
+        <nav className="hidden items-center gap-1 lg:flex">
+          {[mainLinks[0], {href: '/builders', key: 'nav.builders'}, ...mainLinks.slice(1)].map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
-                'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
-                pathname === link.href ? 'bg-[color:var(--prompteero-blue)] text-white' : 'hover:bg-slate-100'
+                'rounded-lg px-3 py-2 text-sm text-[color:var(--prompteero-dark)]',
+                pathname === link.href || (link.href === '/builders' && builderLinks.some((item) => pathname === item.href))
+                  ? 'bg-[color:var(--prompteero-blue)] text-white'
+                  : 'hover:bg-slate-100'
               )}
             >
               {t(link.key)}
@@ -130,13 +92,15 @@ export function SiteHeader() {
           onClick={() => setMobileOpen((value) => !value)}
           className="rounded-lg border border-[color:var(--prompteero-light)] p-2 text-[color:var(--prompteero-dark)] lg:hidden"
           aria-label={t('nav.menu')}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-menu"
         >
           <Menu className="h-5 w-5" />
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-[color:var(--prompteero-light)] bg-white px-4 py-3 lg:hidden">
+        <div id="mobile-menu" className="border-t border-[color:var(--prompteero-light)] bg-white px-4 py-3 lg:hidden">
           <div className="mb-3">
             <LocaleSwitcher />
           </div>
@@ -146,26 +110,33 @@ export function SiteHeader() {
               {t('nav.home')}
             </Link>
 
-            <button
-              onClick={() => setMobileBuildersOpen((value) => !value)}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm hover:bg-slate-100"
+            <Link
+              href="/builders"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'block rounded-lg px-2 py-2 text-sm',
+                pathname === '/builders' || builderLinks.some((item) => pathname === item.href)
+                  ? 'bg-[color:var(--prompteero-blue)] text-white'
+                  : 'hover:bg-slate-100'
+              )}
             >
-              <span>{t('nav.builders')}</span>
-              <span>{mobileBuildersOpen ? '-' : '+'}</span>
-            </button>
-
-            {mobileBuildersOpen && (
-              <div className="space-y-1 pl-3">
-                <Link href="/builders" onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
-                  {t('nav.openBuilders')}
+              {t('nav.builders')}
+            </Link>
+            <div id="mobile-builders-submenu" className="space-y-1 pl-3">
+              {builderLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    'block rounded-lg px-2 py-2 text-sm',
+                    pathname === link.href ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-100'
+                  )}
+                >
+                  {t(link.key)}
                 </Link>
-                {builderLinks.map((link) => (
-                  <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
-                    {t(link.key)}
-                  </Link>
-                ))}
-              </div>
-            )}
+              ))}
+            </div>
 
             {mainLinks.slice(1).map((link) => (
               <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">

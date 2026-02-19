@@ -7,6 +7,7 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Badge} from '@/components/ui/badge';
+import {Button} from '@/components/ui/button';
 import {featureFlags} from '@/lib/feature-flags';
 import {getSupabaseBrowserClient} from '@/lib/supabase';
 
@@ -88,7 +89,12 @@ export function GalleryPage() {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filtered.length === 0 ? (
           <Card>
-            <CardContent className="pt-4 text-sm text-slate-600">{t('gallery.empty')}</CardContent>
+            <CardContent className="space-y-3 pt-4 text-sm text-slate-600">
+              <p>{t('gallery.empty')}</p>
+              <Button asChild>
+                <Link href="/prompt-builder">{t('gallery.emptyCta')}</Link>
+              </Button>
+            </CardContent>
           </Card>
         ) : (
           filtered.map((item) => (

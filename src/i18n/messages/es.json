@@ -5,7 +5,11 @@
     "loading": "Cargando...",
     "name": "Nombre",
     "description": "Descripción",
-    "tags": "Tags"
+    "tags": "Tags",
+    "on": "Activo",
+    "off": "Inactivo",
+    "reorder": "Reordenar",
+    "account": "Cuenta"
   },
   "help": {
     "prompt": {
@@ -50,7 +54,10 @@
   },
   "filters": {
     "allNiches": "Todos los nichos",
-    "allStructures": "Todas las estructuras"
+    "allStructures": "Todas las estructuras",
+    "dev": "Desarrollo",
+    "images": "Imágenes",
+    "videos": "Video"
   },
   "visibility": {
     "private": "Privado",
@@ -67,7 +74,10 @@
     "duplicate": "Duplicar",
     "delete": "Eliminar",
     "add": "Agregar",
-    "addStep": "Agregar step"
+    "addStep": "Agregar step",
+    "export": "Exportar",
+    "exported": "Exportado",
+    "remove": "Eliminar"
   },
   "landing": {
     "title": "Builder visual para crear prompts, skills y agents sin ser experto",
@@ -137,7 +147,24 @@
     "copied": "Prompt copiado.",
     "supabaseRequired": "Publicar requiere Supabase configurado.",
     "loginRequired": "Necesitas iniciar sesión para publicar.",
-    "published": "Prompt publicado en galería."
+    "published": "Prompt publicado en galería.",
+    "columns": {
+      "role": "Rol",
+      "goal": "Objetivo",
+      "context": "Contexto",
+      "inputs": "Inputs",
+      "constraints": "Restricciones",
+      "output-format": "Formato de salida",
+      "examples": "Ejemplos"
+    },
+    "stepsTitle": "Pasos del wizard",
+    "stepsDescription": "Sigue estos pasos y completa cada uno para publicar con confianza.",
+    "pending": "Pendiente",
+    "noSuggestedBlocks": "No hay bloques sugeridos para este paso.",
+    "inputsEmpty": "Sugerencia base: describe aquí los inputs esperados del usuario o arrastra un bloque de la paleta.",
+    "macro": "Macro",
+    "untitled": "Prompt sin título",
+    "invalid": "Prompt inválido"
   },
   "skillBuilder": {
     "title": "Skill Builder",
@@ -152,7 +179,19 @@
     "editorHelp": "Completa Purpose / When to use / Steps / Examples / Output contract.",
     "selectSkill": "Selecciona una skill para editar.",
     "newSkill": "Nueva Skill",
-    "noDescription": "Sin descripción"
+    "noDescription": "Sin descripción",
+    "defaultPackTitle": "Mi Pack de Skills",
+    "defaultMarkdown": "## Propósito\n\n## Cuándo usar\n\n## Pasos\n\n## Ejemplos\n\n## Contrato de salida",
+    "skillsCount": "{count} skills",
+    "stepsTitle": "Pasos del wizard",
+    "stepsDescription": "Define el pack, agrega skills y edita su contenido reutilizable.",
+    "visibilityLabel": "Visibilidad",
+    "editing": "Editando",
+    "editingSkill": "Editando: {name}",
+    "markdownContent": "Contenido Markdown",
+    "previewSkillMd": "Vista previa: SKILL.md",
+    "invalid": "Pack de skills inválido",
+    "bothLanguages": "Ambos"
   },
   "agentBuilder": {
     "title": "Agent Builder",
@@ -172,7 +211,26 @@
     "outputsHelp": "1) Agent Prompt 2) AGENTS.md 3) Bundle export .zip",
     "agentPrompt": "Agent Prompt",
     "saved": "Agente guardado en localStorage.",
-    "exportBundle": "Export Bundle (.zip)"
+    "exportBundle": "Export Bundle (.zip)",
+    "outputContractDefault": "JSON con claves: summary, actions, risks",
+    "done": "Validación",
+    "whatDoes": "Qué hace",
+    "expectedInputs": "Inputs esperados",
+    "selectedTools": "Tools seleccionadas",
+    "howToUse": "Cómo usarlo",
+    "howToUse1": "Completa los inputs.",
+    "howToUse2": "Ejecuta los pasos en orden.",
+    "howToUse3": "Valida el resultado con el contrato de salida.",
+    "untitled": "Agente sin título",
+    "invalid": "Agente inválido",
+    "stepsCount": "{count} pasos",
+    "toolsCount": "{count} tools",
+    "stepsTitle": "Pasos del wizard",
+    "stepsDescription": "Completa cada sección para generar un agente claro para no expertos.",
+    "stepPlaceholder": "Describe este paso",
+    "doneCriteriaPlaceholder": "Criterio de completado",
+    "copyPrompt": "Copiar prompt",
+    "copyAgentsMd": "Copiar AGENTS.md"
   },
   "gallery": {
     "title": "Galería Pública",
@@ -192,7 +250,8 @@
     "reportReason": "Motivo del reporte",
     "reported": "Reporte enviado.",
     "duplicate": "Duplicar",
-    "duplicated": "Copia privada creada."
+    "duplicated": "Copia privada creada.",
+    "emptyCta": "Crear y Publicar un Prompt"
   },
   "auth": {
     "title": "Login / Registro",
@@ -232,7 +291,9 @@
     "subtitle": "Plantillas simples para crear prompts claros.",
     "whenToUse": "Cuándo usarla",
     "template": "Plantilla",
-    "example": "Ejemplo"
+    "example": "Ejemplo",
+    "copyTemplate": "Copiar plantilla",
+    "copyExample": "Copiar ejemplo"
   },
   "buildersHub": {
     "title": "Builders",

@@ -4,6 +4,7 @@ import {useMemo, useState} from 'react';
 import {DndContext, DragEndEvent, PointerSensor, useSensor, useSensors} from '@dnd-kit/core';
 import {arrayMove, SortableContext, useSortable, verticalListSortingStrategy} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
+import {CheckCircle2, GripVertical} from 'lucide-react';
 import JSZip from 'jszip';
 import {useTranslations} from 'next-intl';
 import toolsSeed from '@/data/tools.json';
@@ -12,6 +13,7 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
 import {Badge} from '@/components/ui/badge';
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {agentSpecSchema} from '@/lib/schemas';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {readLocal, storageKeys, writeLocal} from '@/lib/storage';
@@ -33,10 +35,18 @@ function SortableStep({
   step,
   onChange,
   onRemove,
+  dragLabel,
+  stepPlaceholder,
+  donePlaceholder,
+  removeLabel,
 }: {
   step: AgentStep;
   onChange: (id: string, field: keyof AgentStep, value: string) => void;
   onRemove: (id: string) => void;
+  dragLabel: string;
+  stepPlaceholder: string;
+  donePlaceholder: string;
+  removeLabel: string;
 }) {
   const {attributes, listeners, setNodeRef, transform, transition} = useSortable({id: step.id});
   const style = {transform: CSS.Transform.toString(transform), transition};
@@ -44,18 +54,24 @@ function SortableStep({
   return (
     <div ref={setNodeRef} style={style} className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="mb-2 flex items-center justify-between">
-        <button className="cursor-grab rounded px-2 text-slate-500 hover:bg-slate-100" {...attributes} {...listeners}>
-          ::
+        <button
+          className="cursor-grab rounded p-1 text-slate-500 hover:bg-slate-100"
+          {...attributes}
+          {...listeners}
+          aria-label={dragLabel}
+          title={dragLabel}
+        >
+          <GripVertical className="h-4 w-4" />
         </button>
-        <Button variant="ghost" size="sm" onClick={() => onRemove(step.id)}>
-          X
+        <Button variant="ghost" size="sm" onClick={() => onRemove(step.id)} aria-label={removeLabel}>
+          {removeLabel}
         </Button>
       </div>
-      <Input value={step.step} onChange={(e) => onChange(step.id, 'step', e.target.value)} placeholder="Step" />
+      <Input value={step.step} onChange={(e) => onChange(step.id, 'step', e.target.value)} placeholder={stepPlaceholder} />
       <Input
         value={step.doneCriteria}
         onChange={(e) => onChange(step.id, 'doneCriteria', e.target.value)}
-        placeholder="Done criteria"
+        placeholder={donePlaceholder}
         className="mt-2"
       />
     </div>
@@ -80,7 +96,7 @@ export function AgentBuilderPage() {
   const [steps, setSteps] = useState<AgentStep[]>([{id: crypto.randomUUID(), step: '', doneCriteria: ''}]);
   const [tools, setTools] = useState<string[]>([]);
   const [policies, setPolicies] = useState<string[]>(antiHallucinationPolicies);
-  const [outputContract, setOutputContract] = useState('JSON with keys: summary, actions, risks');
+  const [outputContract, setOutputContract] = useState(() => t('agentBuilder.outputContractDefault'));
 
   const localSkillPack = readLocal<any>(storageKeys.skillPacks, null);
   const availableSkills: AttachedSkill[] = localSkillPack?.skills ?? [];
@@ -105,6 +121,17 @@ export function AgentBuilderPage() {
   };
 
   const attachedSkills = availableSkills.filter((skill) => attachedSkillIds.includes(skill.id));
+  const hasMinimumFields = title.trim().length > 0 && role.trim().length > 0 && objective.trim().length > 0;
+  const stepsMeta = [
+    {id: 'step-identity', title: t('agentBuilder.agentTitle'), complete: title.trim().length > 0 && role.trim().length > 0},
+    {id: 'step-objective', title: t('agentBuilder.objective'), complete: objective.trim().length > 0},
+    {id: 'step-inputs', title: t('agentBuilder.inputs'), complete: inputs.some((item) => item.trim().length > 0)},
+    {id: 'step-steps', title: t('agentBuilder.steps'), complete: steps.some((item) => item.step.trim().length > 0 && item.doneCriteria.trim().length > 0)},
+    {id: 'step-tools', title: t('agentBuilder.tools'), complete: tools.length > 0},
+    {id: 'step-policies', title: t('agentBuilder.policies'), complete: policies.some((item) => item.trim().length > 0)},
+    {id: 'step-output', title: t('agentBuilder.outputContract'), complete: outputContract.trim().length > 0},
+    {id: 'step-skills', title: t('agentBuilder.attachSkills'), complete: true},
+  ];
 
   const agentPrompt = useMemo(() => {
     const selectedTools = (toolsSeed as Array<any>)
@@ -113,35 +140,35 @@ export function AgentBuilderPage() {
       .join('\n');
 
     return [
-      `# Agent Role\n${role}`,
-      `# Objective\n${objective}`,
-      `# Inputs\n${inputs.filter(Boolean).map((input, index) => `${index + 1}. ${input}`).join('\n')}`,
-      `# Plan/Steps\n${steps.map((step, index) => `${index + 1}. ${step.step}\n   Done: ${step.doneCriteria}`).join('\n')}`,
-      `# Tools (metadata)\n${selectedTools || '-'}`,
-      `# Policies/Constraints\n${policies.filter(Boolean).map((item) => `- ${item}`).join('\n')}`,
-      `# Output Contract\n${outputContract}`,
+      `# ${t('agentBuilder.agentRole')}\n${role}`,
+      `# ${t('agentBuilder.objective')}\n${objective}`,
+      `# ${t('agentBuilder.inputs')}\n${inputs.filter(Boolean).map((input, index) => `${index + 1}. ${input}`).join('\n')}`,
+      `# ${t('agentBuilder.steps')}\n${steps.map((step, index) => `${index + 1}. ${step.step}\n   ${t('agentBuilder.done')}: ${step.doneCriteria}`).join('\n')}`,
+      `# ${t('agentBuilder.tools')}\n${selectedTools || '-'}`,
+      `# ${t('agentBuilder.policies')}\n${policies.filter(Boolean).map((item) => `- ${item}`).join('\n')}`,
+      `# ${t('agentBuilder.outputContract')}\n${outputContract}`,
     ].join('\n\n');
   }, [role, objective, inputs, steps, tools, policies, outputContract, t]);
 
   const agentsMd = useMemo(() => {
     return [
       `# ${title || 'Agent'}`,
-      `## Que hace\n${objective}`,
-      `## Inputs esperados\n${inputs.filter(Boolean).map((value) => `- ${value}`).join('\n')}`,
-      `## Steps\n${steps.map((step, index) => `${index + 1}. ${step.step} (Done: ${step.doneCriteria})`).join('\n')}`,
-      `## Tools seleccionadas\n${(toolsSeed as Array<any>)
+      `## ${t('agentBuilder.whatDoes')}\n${objective}`,
+      `## ${t('agentBuilder.expectedInputs')}\n${inputs.filter(Boolean).map((value) => `- ${value}`).join('\n')}`,
+      `## ${t('agentBuilder.steps')}\n${steps.map((step, index) => `${index + 1}. ${step.step} (${t('agentBuilder.done')}: ${step.doneCriteria})`).join('\n')}`,
+      `## ${t('agentBuilder.selectedTools')}\n${(toolsSeed as Array<any>)
         .filter((tool) => tools.includes(tool.id))
         .map((tool) => `- ${t(tool.nameKey)} (${t(tool.descriptionKey)})`)
         .join('\n')}`,
-      `## Output contract\n${outputContract}`,
-      `## Como usarlo\n1. Completa los inputs.\n2. Ejecuta los steps en orden.\n3. Valida el resultado con el output contract.`,
+      `## ${t('agentBuilder.outputContract')}\n${outputContract}`,
+      `## ${t('agentBuilder.howToUse')}\n1. ${t('agentBuilder.howToUse1')}\n2. ${t('agentBuilder.howToUse2')}\n3. ${t('agentBuilder.howToUse3')}`,
     ].join('\n\n');
   }, [title, objective, inputs, steps, tools, outputContract, t]);
 
   const saveLocal = () => {
     const payload = {
       id: crypto.randomUUID(),
-      title: title || 'Untitled Agent',
+      title: title || t('agentBuilder.untitled'),
       role,
       objective,
       inputs: inputs.filter(Boolean),
@@ -153,7 +180,7 @@ export function AgentBuilderPage() {
     };
     const parsed = agentSpecSchema.safeParse(payload);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || 'Invalid agent');
+      toast.error(parsed.error.issues[0]?.message || t('agentBuilder.invalid'));
       return;
     }
     writeLocal(storageKeys.agents, parsed.data);
@@ -163,7 +190,7 @@ export function AgentBuilderPage() {
   const exportBundle = async () => {
     const spec = {
       id: crypto.randomUUID(),
-      title: title || 'Untitled Agent',
+      title: title || t('agentBuilder.untitled'),
       role,
       objective,
       inputs: inputs.filter(Boolean),
@@ -176,7 +203,7 @@ export function AgentBuilderPage() {
 
     const parsed = agentSpecSchema.safeParse(spec);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || 'Invalid agent');
+      toast.error(parsed.error.issues[0]?.message || t('agentBuilder.invalid'));
       return;
     }
 
@@ -203,14 +230,14 @@ export function AgentBuilderPage() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-slate-800">{title || t('agentBuilder.agentTitle')}</span>
-            <Badge variant="outline">{steps.length} steps</Badge>
-            <Badge variant="outline">{tools.length} tools</Badge>
+            <Badge variant="outline">{t('agentBuilder.stepsCount', {count: steps.length})}</Badge>
+            <Badge variant="outline">{t('agentBuilder.toolsCount', {count: tools.length})}</Badge>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={saveLocal}>
+            <Button variant="outline" onClick={saveLocal} disabled={!hasMinimumFields}>
               {t('actions.saveDraft')}
             </Button>
-            <Button variant="secondary" onClick={exportBundle}>
+            <Button variant="secondary" onClick={exportBundle} disabled={!hasMinimumFields}>
               {t('agentBuilder.exportBundle')}
             </Button>
           </div>
@@ -219,7 +246,32 @@ export function AgentBuilderPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         {/* Left Column: Vertical Steps */}
-        <div className="space-y-12 pb-20">
+          <div className="space-y-6 pb-20">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">{t('agentBuilder.stepsTitle')}</CardTitle>
+              <CardDescription>{t('agentBuilder.stepsDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {stepsMeta.map((step, index) => (
+                  <a
+                    key={step.id}
+                    href={`#${step.id}`}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-colors hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--prompteero-blue)]"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+                        {index + 1}
+                      </span>
+                      <span className="font-medium text-slate-800">{step.title}</span>
+                    </span>
+                    {step.complete ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <span className="text-xs text-slate-400">{t('promptBuilder.pending')}</span>}
+                  </a>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Step 1: Identity */}
           <div id="step-identity" className="scroll-mt-24 space-y-3">
@@ -290,6 +342,10 @@ export function AgentBuilderPage() {
                         <SortableStep
                           key={step.id}
                           step={step}
+                          dragLabel={t('common.reorder')}
+                          stepPlaceholder={t('agentBuilder.stepPlaceholder')}
+                          donePlaceholder={t('agentBuilder.doneCriteriaPlaceholder')}
+                          removeLabel={t('actions.remove')}
                           onChange={(id, field, value) =>
                             setSteps((prev) => prev.map((item) => (item.id === id ? {...item, [field]: value} : item)))
                           }
@@ -428,27 +484,41 @@ export function AgentBuilderPage() {
               </CardContent>
               <div className="flex gap-2 border-t border-slate-100 p-3">
                 <Button
-                  variant="outline"
                   size="sm"
                   className="flex-1"
+                  disabled={!hasMinimumFields}
                   onClick={async () => {
                     await navigator.clipboard.writeText(agentPrompt);
                     toast.success(t('actions.copied'));
                   }}
                 >
-                  {t('actions.copy')} Prompt
+                  {t('agentBuilder.copyPrompt')}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(agentsMd);
-                    toast.success(t('actions.copied'));
-                  }}
-                >
-                  {t('actions.copy')} AGENTS.md
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex-1" disabled={!hasMinimumFields}>
+                      {t('actions.export')}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onSelect={async () => {
+                        await navigator.clipboard.writeText(agentsMd);
+                        toast.success(t('actions.copied'));
+                      }}
+                    >
+                      {t('agentBuilder.copyAgentsMd')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        void exportBundle();
+                        toast.success(t('actions.exported'));
+                      }}
+                    >
+                      {t('agentBuilder.exportBundle')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </Card>
           </div>

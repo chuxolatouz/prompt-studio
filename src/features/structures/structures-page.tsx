@@ -50,7 +50,7 @@ export function StructuresPage() {
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-sm font-semibold">{t('structuresPage.template')}</p>
                     <Button variant="outline" size="sm" onClick={() => copyText(template)}>
-                      {t('actions.copy')}
+                      {t('structuresPage.copyTemplate')}
                     </Button>
                   </div>
                   <Textarea value={template} readOnly className="min-h-40" />
@@ -59,7 +59,7 @@ export function StructuresPage() {
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-sm font-semibold">{t('structuresPage.example')}</p>
                     <Button variant="outline" size="sm" onClick={() => copyText(example)}>
-                      {t('actions.copy')}
+                      {t('structuresPage.copyExample')}
                     </Button>
                   </div>
                   <Textarea value={example} readOnly className="min-h-40" />

@@ -5,7 +5,11 @@
     "loading": "Loading...",
     "name": "Name",
     "description": "Description",
-    "tags": "Tags"
+    "tags": "Tags",
+    "on": "On",
+    "off": "Off",
+    "reorder": "Reorder",
+    "account": "Account"
   },
   "help": {
     "prompt": {
@@ -50,7 +54,10 @@
   },
   "filters": {
     "allNiches": "All niches",
-    "allStructures": "All structures"
+    "allStructures": "All structures",
+    "dev": "Development",
+    "images": "Images",
+    "videos": "Video"
   },
   "visibility": {
     "private": "Private",
@@ -67,7 +74,10 @@
     "duplicate": "Duplicate",
     "delete": "Delete",
     "add": "Add",
-    "addStep": "Add step"
+    "addStep": "Add step",
+    "export": "Export",
+    "exported": "Exported",
+    "remove": "Remove"
   },
   "landing": {
     "title": "Visual builder for prompts, skills and agents without being an expert",
@@ -137,7 +147,24 @@
     "copied": "Prompt copied.",
     "supabaseRequired": "Publishing requires Supabase setup.",
     "loginRequired": "Login is required to publish.",
-    "published": "Prompt published to gallery."
+    "published": "Prompt published to gallery.",
+    "columns": {
+      "role": "Role",
+      "goal": "Goal",
+      "context": "Context",
+      "inputs": "Inputs",
+      "constraints": "Constraints",
+      "output-format": "Output format",
+      "examples": "Examples"
+    },
+    "stepsTitle": "Wizard steps",
+    "stepsDescription": "Follow these steps and complete each one before publishing.",
+    "pending": "Pending",
+    "noSuggestedBlocks": "No suggested blocks for this step.",
+    "inputsEmpty": "Starter suggestion: describe expected user inputs here or drag a block from the palette.",
+    "macro": "Macro",
+    "untitled": "Untitled prompt",
+    "invalid": "Invalid prompt"
   },
   "skillBuilder": {
     "title": "Skill Builder",
@@ -152,7 +179,19 @@
     "editorHelp": "Fill Purpose / When to use / Steps / Examples / Output contract.",
     "selectSkill": "Select a skill to edit.",
     "newSkill": "New Skill",
-    "noDescription": "No description"
+    "noDescription": "No description",
+    "defaultPackTitle": "My Skill Pack",
+    "defaultMarkdown": "## Purpose\n\n## When to use\n\n## Steps\n\n## Examples\n\n## Output contract",
+    "skillsCount": "{count} skills",
+    "stepsTitle": "Wizard steps",
+    "stepsDescription": "Define the pack, add skills, and edit reusable content.",
+    "visibilityLabel": "Visibility",
+    "editing": "Editing",
+    "editingSkill": "Editing: {name}",
+    "markdownContent": "Markdown content",
+    "previewSkillMd": "Preview: SKILL.md",
+    "invalid": "Invalid skill pack",
+    "bothLanguages": "Both"
   },
   "agentBuilder": {
     "title": "Agent Builder",
@@ -172,7 +211,26 @@
     "outputsHelp": "1) Agent Prompt 2) AGENTS.md 3) Bundle export .zip",
     "agentPrompt": "Agent Prompt",
     "saved": "Agent saved in localStorage.",
-    "exportBundle": "Export Bundle (.zip)"
+    "exportBundle": "Export Bundle (.zip)",
+    "outputContractDefault": "JSON with keys: summary, actions, risks",
+    "done": "Done",
+    "whatDoes": "What it does",
+    "expectedInputs": "Expected inputs",
+    "selectedTools": "Selected tools",
+    "howToUse": "How to use",
+    "howToUse1": "Fill in the inputs.",
+    "howToUse2": "Run the steps in order.",
+    "howToUse3": "Validate the result with the output contract.",
+    "untitled": "Untitled agent",
+    "invalid": "Invalid agent",
+    "stepsCount": "{count} steps",
+    "toolsCount": "{count} tools",
+    "stepsTitle": "Wizard steps",
+    "stepsDescription": "Complete each section to generate a clear agent for non-experts.",
+    "stepPlaceholder": "Describe this step",
+    "doneCriteriaPlaceholder": "Done criteria",
+    "copyPrompt": "Copy prompt",
+    "copyAgentsMd": "Copy AGENTS.md"
   },
   "gallery": {
     "title": "Public Gallery",
@@ -192,7 +250,8 @@
     "reportReason": "Report reason",
     "reported": "Report submitted.",
     "duplicate": "Duplicate",
-    "duplicated": "Private copy created."
+    "duplicated": "Private copy created.",
+    "emptyCta": "Create and Publish a Prompt"
   },
   "auth": {
     "title": "Login / Register",
@@ -232,7 +291,9 @@
     "subtitle": "Simple templates to write clear prompts.",
     "whenToUse": "When to use",
     "template": "Template",
-    "example": "Example"
+    "example": "Example",
+    "copyTemplate": "Copy template",
+    "copyExample": "Copy example"
   },
   "buildersHub": {
     "title": "Builders",

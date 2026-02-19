@@ -24,11 +24,11 @@ export function Logo({variant = 'full', size, className, priority = false}: Logo
   }
 
   const width = size ?? 180;
-  const height = Math.round(width * (390 / 574));
+  const height = Math.round(width * (266 / 1024));
 
   return (
     <Image
-      src="/logo_promptero.png"
+      src="/brand/prompteero-logo-primary.png"
       alt="prompteero"
       width={width}
       height={height}

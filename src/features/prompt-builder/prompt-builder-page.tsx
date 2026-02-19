@@ -5,6 +5,7 @@ import {useMemo, useState} from 'react';
 import {DndContext, DragEndEvent, DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors} from '@dnd-kit/core';
 import {arrayMove, SortableContext, useSortable, verticalListSortingStrategy} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
+import {CheckCircle2, ChevronDown, GripVertical} from 'lucide-react';
 import JSZip from 'jszip';
 import {useTranslations} from 'next-intl';
 import blocksSeed from '@/data/blocks.json';
@@ -13,6 +14,7 @@ import rolesSeed from '@/data/roles.json';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Switch} from '@/components/ui/switch';
@@ -101,9 +103,11 @@ function PaletteDraggable({id, children}: {id: string; children: React.ReactNode
 function SortableItem({
   item,
   onChange,
+  dragLabel,
 }: {
   item: PromptBuilderState['columns'][number]['items'][number];
   onChange: (id: string, content: string) => void;
+  dragLabel: string;
 }) {
   const {attributes, listeners, setNodeRef, transform, transition} = useSortable({id: item.id});
   const style = {transform: CSS.Transform.toString(transform), transition};
@@ -112,8 +116,14 @@ function SortableItem({
     <div ref={setNodeRef} style={style} className="rounded-xl border border-slate-200 bg-white p-2">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-slate-700">{item.title}</p>
-        <button className="cursor-grab rounded px-2 text-xs text-slate-500 hover:bg-slate-100" {...attributes} {...listeners}>
-          ::
+        <button
+          className="cursor-grab rounded p-1 text-xs text-slate-500 hover:bg-slate-100"
+          {...attributes}
+          {...listeners}
+          aria-label={dragLabel}
+          title={dragLabel}
+        >
+          <GripVertical className="h-4 w-4" />
         </button>
       </div>
       <Textarea value={item.content} onChange={(e) => onChange(item.id, e.target.value)} className="min-h-20" />
@@ -124,18 +134,22 @@ function SortableItem({
 function DropColumn({
   column,
   onChange,
+  dragLabel,
+  title,
 }: {
   column: PromptBuilderState['columns'][number];
   onChange: (itemId: string, content: string) => void;
+  dragLabel: string;
+  title: string;
 }) {
   const {setNodeRef, isOver} = useDroppable({id: column.id, data: {kind: 'column'}});
   return (
     <div ref={setNodeRef} className={`min-h-36 rounded-2xl border p-3 ${isOver ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-slate-50'}`}>
-      <h4 className="mb-3 font-semibold text-slate-700">{column.title}</h4>
+      <h4 className="mb-3 font-semibold text-slate-700">{title}</h4>
       <SortableContext items={column.items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2">
           {column.items.map((item) => (
-            <SortableItem key={item.id} item={item} onChange={onChange} />
+            <SortableItem key={item.id} item={item} onChange={onChange} dragLabel={dragLabel} />
           ))}
         </div>
       </SortableContext>
@@ -155,6 +169,15 @@ function findItem(columns: PromptBuilderState['columns'], itemId: string) {
   return null;
 }
 
+function getColumnLabel(t: ReturnType<typeof useTranslations>, columnId: string, fallback: string) {
+  const key = `promptBuilder.columns.${columnId}`;
+  try {
+    return t(key as any);
+  } catch {
+    return fallback;
+  }
+}
+
 export function PromptBuilderPage() {
   const t = useTranslations();
   const {user} = useAuth();
@@ -162,11 +185,16 @@ export function PromptBuilderPage() {
   const [state, setState] = useState<PromptBuilderState>(() => createInitialState());
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [structureFilter, setStructureFilter] = useState('all');
+  const structureFilter = 'all';
 
   const sensors = useSensors(useSensor(PointerSensor));
   const structures = structuresSeed as Array<StructureMacro>;
   const selectedStructure = structures.find((item) => item.id === state.structure) ?? structures[0];
+  const visibleColumns = state.columns.filter((col) => {
+    if (col.id === 'constraints' && state.antiHallucination) return true;
+    const activeStructure = structures.find((s) => s.id === state.structure);
+    return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
+  });
 
   const ensureAntiHallucination = (columns: PromptBuilderState['columns'], enabled: boolean) => {
     const next = [...columns];
@@ -207,21 +235,21 @@ export function PromptBuilderPage() {
         columns = columns.map((column) => {
           if (column.items.length > 0) return column;
           if (column.id === 'role') {
-            const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('role'));
-            return line
-              ? {...column, items: [{id: `macro-${Date.now()}-role`, title: 'Macro', content: line, level: 'basic', tags: []}]}
+              const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('role'));
+              return line
+              ? {...column, items: [{id: `macro-${Date.now()}-role`, title: t('promptBuilder.macro'), content: line, level: 'basic', tags: []}]}
               : column;
           }
           if (column.id === 'goal') {
-            const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('task') || entry.toLowerCase().startsWith('objective'));
-            return line
-              ? {...column, items: [{id: `macro-${Date.now()}-goal`, title: 'Macro', content: line, level: 'basic', tags: []}]}
+              const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('task') || entry.toLowerCase().startsWith('objective'));
+              return line
+              ? {...column, items: [{id: `macro-${Date.now()}-goal`, title: t('promptBuilder.macro'), content: line, level: 'basic', tags: []}]}
               : column;
           }
           if (column.id === 'output-format') {
-            const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('format') || entry.toLowerCase().startsWith('output') || entry.toLowerCase().startsWith('response'));
-            return line
-              ? {...column, items: [{id: `macro-${Date.now()}-output`, title: 'Macro', content: line, level: 'basic', tags: []}]}
+              const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('format') || entry.toLowerCase().startsWith('output') || entry.toLowerCase().startsWith('response'));
+              return line
+              ? {...column, items: [{id: `macro-${Date.now()}-output`, title: t('promptBuilder.macro'), content: line, level: 'basic', tags: []}]}
               : column;
           }
           return column;
@@ -291,6 +319,8 @@ export function PromptBuilderPage() {
 
     return lines.join('\n\n');
   }, [state.columns, state.role, selectedStructure]);
+  const hasPreviewContent = composedPrompt.trim().length > 0;
+  const hasMinimumFields = state.title.trim().length > 0 && hasPreviewContent;
 
   const onDragStart = (event: DragStartEvent) => {
     setActiveDragId(String(event.active.id));
@@ -409,7 +439,7 @@ export function PromptBuilderPage() {
   const saveDraft = () => {
     const parsed = promptBuilderStateSchema.safeParse(state);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || 'Invalid prompt');
+      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
       return;
     }
 
@@ -433,7 +463,7 @@ export function PromptBuilderPage() {
 
     const parsed = promptBuilderStateSchema.safeParse(state);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || 'Invalid prompt');
+      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
       return;
     }
 
@@ -443,7 +473,7 @@ export function PromptBuilderPage() {
     const slug = `${slugify(state.title || 'prompt')}-${Math.random().toString(36).slice(2, 7)}`;
     const {error} = await supabase.from('prompts').insert({
       owner_id: user.id,
-      title: state.title || 'Untitled Prompt',
+      title: state.title || t('promptBuilder.untitled'),
       slug,
       language: 'auto',
       visibility: 'public',
@@ -463,20 +493,10 @@ export function PromptBuilderPage() {
     toast.success(t('promptBuilder.published'));
   };
 
-  const resetAntiHallucination = () => {
-    setState((prev) => ({
-      ...prev,
-      columns: prev.columns.map((column) => ({
-        ...column,
-        items: column.items.map((item) => (item.id === 'anti-hallucination' ? {...item, content: antiHallucinationDefault} : item)),
-      })),
-    }));
-  };
-
   const exportZip = async () => {
     const parsed = promptBuilderStateSchema.safeParse(state);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || 'Invalid prompt');
+      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
       return;
     }
 
@@ -514,12 +534,12 @@ export function PromptBuilderPage() {
                 <SelectTrigger className="w-[130px]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('filters.allNiches')}</SelectItem>
-                  <SelectItem value="dev">Dev</SelectItem>
-                  <SelectItem value="images">Images</SelectItem>
-                  <SelectItem value="videos">Videos</SelectItem>
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">{t('filters.allNiches')}</SelectItem>
+                    <SelectItem value="dev">{t('filters.dev')}</SelectItem>
+                    <SelectItem value="images">{t('filters.images')}</SelectItem>
+                    <SelectItem value="videos">{t('filters.videos')}</SelectItem>
+                  </SelectContent>
               </Select>
             </div>
           </div>
@@ -541,7 +561,7 @@ export function PromptBuilderPage() {
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
           {/* Left Column: Vertical Steps */}
-          <div className="space-y-12 pb-20">
+          <div className="space-y-6 pb-20">
             {/* Project Info Card */}
             <Card glow className="border-blue-100 bg-blue-50/50">
               <CardHeader>
@@ -573,6 +593,7 @@ export function PromptBuilderPage() {
                   <span className="text-sm font-medium text-slate-700">{t('promptBuilder.antiHallucination')}</span>
                   <Switch
                     checked={state.antiHallucination}
+                    aria-label={t('promptBuilder.antiHallucination')}
                     onCheckedChange={(value) =>
                       setState((prev) => ({
                         ...prev,
@@ -582,21 +603,43 @@ export function PromptBuilderPage() {
                     }
                   />
                   <Badge variant={state.antiHallucination ? 'default' : 'secondary'}>
-                    {state.antiHallucination ? 'ON' : 'OFF'}
+                    {state.antiHallucination ? t('common.on') : t('common.off')}
                   </Badge>
                 </div>
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">{t('promptBuilder.stepsTitle')}</CardTitle>
+                <CardDescription>{t('promptBuilder.stepsDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {visibleColumns.map((column, index) => {
+                    const done = column.items.length > 0;
+                    return (
+                      <a
+                        key={column.id}
+                        href={`#step-${column.id}`}
+                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-colors hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--prompteero-blue)]"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-slate-800">{getColumnLabel(t, column.id, column.title)}</span>
+                        </span>
+                        {done ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <span className="text-xs text-slate-400">{t('promptBuilder.pending')}</span>}
+                      </a>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Dynamic Stages based on Structure */}
-            {state.columns
-              .filter((col) => {
-                // Only show columns relevant to current structure (plus constraints/anti-hallucination if active)
-                if (col.id === 'constraints' && state.antiHallucination) return true;
-                const activeStructure = structures.find((s) => s.id === state.structure);
-                return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
-              })
-              .map((column, index) => {
+            {visibleColumns.map((column, index) => {
                 const stepBlocks = filteredBlocks.filter(
                   (b) => b.targetColumn === column.id || (column.id === 'constraints' && b.targetColumn === 'constraints')
                 );
@@ -607,7 +650,7 @@ export function PromptBuilderPage() {
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
                         {index + 1}
                       </div>
-                      <h3 className="text-lg font-bold text-slate-800">{column.title}</h3>
+                      <h3 className="text-lg font-bold text-slate-800">{getColumnLabel(t, column.id, column.title)}</h3>
                       <StepHelp tooltip={t(`help.prompt.${column.id}`)} />
                     </div>
 
@@ -616,14 +659,14 @@ export function PromptBuilderPage() {
                         <p className="mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                           {t('promptBuilder.palette')} ({stepBlocks.length})
                         </p>
-                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {stepBlocks.length === 0 ? (
-                            <p className="text-xs text-slate-400 italic py-2">No suggested blocks for this step</p>
+                            <p className="py-2 text-xs italic text-slate-400">{t('promptBuilder.noSuggestedBlocks')}</p>
                           ) : (
                             stepBlocks.map((block) => (
                               <PaletteDraggable key={block.id} id={`palette-${block.id}`}>
                                 <div
-                                  className={`relative w-40 flex-shrink-0 cursor-grab rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md ${
+                                  className={`relative cursor-grab rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md ${
                                     activeDragId === `palette-${block.id}` ? 'opacity-50' : ''
                                   }`}
                                 >
@@ -648,6 +691,8 @@ export function PromptBuilderPage() {
                       <CardContent className="p-4">
                         <DropColumn
                           column={column}
+                          title={getColumnLabel(t, column.id, column.title)}
+                          dragLabel={t('common.reorder')}
                           onChange={(itemId, content) =>
                             setState((prev) => ({
                               ...prev,
@@ -658,6 +703,11 @@ export function PromptBuilderPage() {
                             }))
                           }
                         />
+                        {column.id === 'inputs' && column.items.length === 0 && (
+                          <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">
+                            <p>{t('promptBuilder.inputsEmpty')}</p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -685,9 +735,9 @@ export function PromptBuilderPage() {
                   />
                 </CardContent>
                 <div className="border-t border-slate-100 p-3">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Button
-                      variant="outline"
+                      disabled={!hasPreviewContent}
                       size="sm"
                       onClick={async () => {
                         await navigator.clipboard.writeText(composedPrompt);
@@ -696,35 +746,50 @@ export function PromptBuilderPage() {
                     >
                       {t('actions.copy')}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown')}
-                    >
-                      {t('actions.exportMd')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        downloadBlob(
-                          `${slugify(state.title || 'prompt')}.json`,
-                          JSON.stringify({...state, output: composedPrompt}, null, 2),
-                          'application/json'
-                        )
-                      }
-                    >
-                      {t('actions.exportJson')}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={exportZip}>
-                      {t('actions.exportZip')}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={!hasPreviewContent}>
+                          {t('actions.export')}
+                          <ChevronDown className="ml-1 h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown');
+                            toast.success(t('actions.exported'));
+                          }}
+                        >
+                          {t('actions.exportMd')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            downloadBlob(
+                              `${slugify(state.title || 'prompt')}.json`,
+                              JSON.stringify({...state, output: composedPrompt}, null, 2),
+                              'application/json'
+                            );
+                            toast.success(t('actions.exported'));
+                          }}
+                        >
+                          {t('actions.exportJson')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            void exportZip();
+                            toast.success(t('actions.exported'));
+                          }}
+                        >
+                          {t('actions.exportZip')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <div className="mt-3 grid gap-2">
-                    <Button onClick={handlePublish} className="w-full">
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <Button onClick={handlePublish} className="w-full" disabled={!hasMinimumFields}>
                       {t('actions.publish')}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={saveDraft} className="w-full text-slate-400 hover:text-slate-600">
+                    <Button variant="outline" size="sm" onClick={saveDraft} className="w-full" disabled={!hasMinimumFields}>
                       {t('actions.saveDraft')}
                     </Button>
                   </div>
