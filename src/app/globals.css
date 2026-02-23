@@ -75,8 +75,24 @@ pre {
 .particle-field {
   position: absolute;
   inset: 0;
-  pointer-events: none;
+  pointer-events: auto;
   overflow: hidden;
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  --pointer-active: 0;
+}
+
+.particle-field::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(
+    280px circle at var(--pointer-x) var(--pointer-y),
+    color-mix(in srgb, var(--prompteero-blue) 26%, transparent 74%) 0%,
+    transparent 65%
+  );
+  opacity: calc(0.25 + (var(--pointer-active) * 0.35));
+  transition: opacity 220ms ease;
 }
 
 .particle-field__dot {
@@ -107,10 +123,10 @@ pre {
 @keyframes particle-float {
   0%,
   100% {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(var(--particle-interactive-x, 0px), var(--particle-interactive-y, 0px), 0);
   }
   50% {
-    transform: translate3d(0, -10px, 0);
+    transform: translate3d(var(--particle-interactive-x, 0px), calc(var(--particle-interactive-y, 0px) - 10px), 0);
   }
 }
 
@@ -135,9 +151,13 @@ pre {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .particle-field::before {
+    opacity: 0.15;
+  }
+
   .particle-field__dot {
     animation: none;
     opacity: 0.14;
-    transform: none;
+    transform: translate3d(0, 0, 0);
   }
 }

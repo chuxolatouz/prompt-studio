@@ -46,7 +46,7 @@ export function SiteHeader() {
               className={cn(
                 'rounded-lg px-3 py-2 text-sm text-[color:var(--prompteero-dark)]',
                 pathname === link.href || (link.href === '/builders' && builderLinks.some((item) => pathname === item.href))
-                  ? 'bg-[color:var(--prompteero-blue)] text-white'
+                  ? 'bg-[color:var(--prompteero-blue)] !text-white'
                   : 'hover:bg-slate-100'
               )}
             >
@@ -59,7 +59,7 @@ export function SiteHeader() {
                 href="/dashboard"
                 className={cn(
                   'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
-                  pathname === '/dashboard' ? 'bg-[color:var(--prompteero-blue)] text-white' : 'hover:bg-slate-100'
+                  pathname === '/dashboard' ? 'bg-[color:var(--prompteero-blue)] !text-white' : 'hover:bg-slate-100'
                 )}
               >
                 {t('nav.dashboard')}
@@ -110,7 +110,7 @@ export function SiteHeader() {
               className={cn(
                 'block rounded-lg px-2 py-2 text-sm',
                 pathname === '/builders' || builderLinks.some((item) => pathname === item.href)
-                  ? 'bg-[color:var(--prompteero-blue)] text-white'
+                  ? 'bg-[color:var(--prompteero-blue)] !text-white'
                   : 'hover:bg-slate-100'
               )}
             >

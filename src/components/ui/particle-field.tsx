@@ -1,8 +1,13 @@
+'use client';
+
+import {useRef, useState} from 'react';
+import type {CSSProperties, PointerEvent as ReactPointerEvent} from 'react';
 import {cn} from '@/lib/utils';
 
 type ParticleFieldProps = {
   density?: 'low' | 'medium';
   colorMode?: 'brand-blue';
+  interactive?: boolean;
   className?: string;
 };
 
@@ -29,11 +34,55 @@ const PARTICLES_MEDIUM = [
   {size: 5, left: '95%', top: '24%', delay: '2.5s', duration: '13s'},
 ];
 
-export function ParticleField({density = 'low', colorMode = 'brand-blue', className}: ParticleFieldProps) {
+type PointerState = {
+  x: number;
+  y: number;
+  active: boolean;
+};
+
+export function ParticleField({
+  density = 'low',
+  colorMode = 'brand-blue',
+  interactive = true,
+  className,
+}: ParticleFieldProps) {
   const particles = density === 'medium' ? PARTICLES_MEDIUM : PARTICLES_LOW;
+  const rafRef = useRef<number | null>(null);
+  const [pointer, setPointer] = useState<PointerState>({x: 50, y: 50, active: false});
+
+  const updatePointer = (x: number, y: number, active: boolean) => {
+    if (!interactive) return;
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setPointer({x, y, active});
+      rafRef.current = null;
+    });
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interactive) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - bounds.left) / bounds.width) * 100;
+    const y = ((event.clientY - bounds.top) / bounds.height) * 100;
+    updatePointer(Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)), true);
+  };
+
+  const onPointerLeave = () => updatePointer(50, 50, false);
 
   return (
-    <div className={cn('particle-field', colorMode === 'brand-blue' && 'particle-field--brand-blue', className)} aria-hidden="true">
+    <div
+      className={cn('particle-field', colorMode === 'brand-blue' && 'particle-field--brand-blue', className)}
+      aria-hidden="true"
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      style={
+        {
+          '--pointer-x': `${pointer.x}%`,
+          '--pointer-y': `${pointer.y}%`,
+          '--pointer-active': pointer.active ? 1 : 0,
+        } as CSSProperties
+      }
+    >
       {particles.map((particle, index) => (
         <span
           key={`${particle.left}-${particle.top}-${index}`}
@@ -45,7 +94,9 @@ export function ParticleField({density = 'low', colorMode = 'brand-blue', classN
               '--particle-top': particle.top,
               '--particle-delay': particle.delay,
               '--particle-duration': particle.duration,
-            } as React.CSSProperties
+              '--particle-interactive-x': `${(pointer.x - 50) * (0.035 + (index % 4) * 0.02)}px`,
+              '--particle-interactive-y': `${(pointer.y - 50) * (0.03 + (index % 3) * 0.018)}px`,
+            } as CSSProperties
           }
         />
       ))}
