@@ -5,6 +5,7 @@ import {Button} from '@/components/ui/button';
 import {Logo} from '@/components/layout/logo';
 import {Badge} from '@/components/ui/badge';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {ParticleField} from '@/components/ui/particle-field';
 
 const cards = [
   {icon: TextCursorInput, key: 'landing.prompt', href: '/prompt-builder'},
@@ -17,17 +18,20 @@ export default async function Home() {
 
   return (
     <div className="space-y-7">
-      <section className="rounded-3xl border border-blue-200 bg-gradient-to-br from-cyan-100 via-white to-emerald-100 p-5 sm:p-7">
-        <Logo variant="full" size={220} className="mb-3" priority />
-        <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-slate-900">{t('landing.title')}</h1>
-        <p className="mt-3 max-w-3xl text-lg leading-relaxed text-slate-700">{t('landing.subtitle')}</p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Button asChild>
-            <Link href="/builders">{t('landing.ctaBuilders')}</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/gallery">{t('landing.ctaGallery')}</Link>
-          </Button>
+      <section className="relative overflow-hidden rounded-3xl border border-blue-200 bg-gradient-to-br from-cyan-100 via-white to-emerald-100 p-5 sm:p-7">
+        <ParticleField className="absolute inset-0 z-0" density="low" colorMode="brand-blue" />
+        <div className="relative z-10">
+          <Logo variant="full" size={220} className="mb-3" priority />
+          <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-slate-900">{t('landing.title')}</h1>
+          <p className="mt-3 max-w-3xl text-lg leading-relaxed text-slate-700">{t('landing.subtitle')}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/builders">{t('landing.ctaBuilders')}</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/gallery">{t('landing.ctaGallery')}</Link>
+            </Button>
+          </div>
         </div>
       </section>
 

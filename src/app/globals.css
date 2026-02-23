@@ -71,3 +71,73 @@ pre {
   opacity: 0.7;
   filter: blur(20px);
 }
+
+.particle-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.particle-field__dot {
+  position: absolute;
+  left: var(--particle-left);
+  top: var(--particle-top);
+  width: var(--particle-size);
+  height: var(--particle-size);
+  border-radius: 9999px;
+  opacity: 0.25;
+  background: color-mix(in srgb, var(--prompteero-blue) 82%, white 18%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--prompteero-blue) 25%, transparent 75%);
+  animation: particle-float var(--particle-duration) ease-in-out var(--particle-delay) infinite,
+    particle-pulse calc(var(--particle-duration) * 0.6) ease-in-out var(--particle-delay) infinite;
+  will-change: transform, opacity;
+}
+
+.particle-field--brand-blue .particle-field__dot:nth-child(4n) {
+  opacity: 0.18;
+  background: color-mix(in srgb, var(--prompteero-blue) 70%, white 30%);
+}
+
+.particle-field--brand-blue .particle-field__dot:nth-child(5n) {
+  opacity: 0.16;
+  background: color-mix(in srgb, var(--prompteero-orange) 20%, var(--prompteero-blue) 80%);
+}
+
+@keyframes particle-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes particle-pulse {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
+@media (max-width: 768px) {
+  .particle-field__dot:nth-child(2n + 1) {
+    display: none;
+  }
+
+  .particle-field__dot {
+    animation-duration: calc(var(--particle-duration) * 1.25), calc(var(--particle-duration) * 0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .particle-field__dot {
+    animation: none;
+    opacity: 0.14;
+    transform: none;
+  }
+}
