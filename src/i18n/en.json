@@ -146,6 +146,9 @@
     "title": "Prompt Builder",
     "applyMacro": "Apply structure macro",
     "subtitle": "Build prompts piece by piece in a Trello-like canvas.",
+    "advancedMode": "Advanced",
+    "advancedModeTooltip": "Shows quest mode, checklist, and advanced validations.",
+    "simpleModeDescription": "Simple mode: complete segments by writing directly or dragging blocks.",
     "promptTitle": "Prompt title",
     "promptDetails": "Prompt Details",
     "structureTypeTitle": "Structure type",
@@ -244,7 +247,8 @@
       "output-format": "E.g. Table with columns…, JSON with fields…",
       "examples": "Input/output sample…"
     },
-    "segmentHintPrefix": "Hint"
+    "segmentHintPrefix": "Hint",
+    "manualInputLabel": "Write manually"
   },
   "skillBuilder": {
     "title": "Skill Builder",

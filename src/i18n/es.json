@@ -148,10 +148,13 @@
     "title": "Prompt Builder",
     "applyMacro": "Aplicar macro",
     "subtitle": "Construye por segmentos, reordena y exporta.",
+    "advancedMode": "Avanzado",
+    "advancedModeTooltip": "Muestra quest, checklist y validaciones avanzadas.",
+    "simpleModeDescription": "Modo simple: completa los segmentos escribiendo directamente o arrastrando bloques.",
     "promptTitle": "Título del prompt",
     "promptDetails": "Detalles del prompt",
     "structureTypeTitle": "Tipo de estructura",
-    "structureTypeDescription": "Elige RTF, TAO, BAB, CARE y más para adaptar el editor.",
+    "structureTypeDescription": "Elige RTF, TAO, BAB, CASE y más para adaptar el editor.",
     "structureGuideTitle": "Guía rápida: {structure}",
     "structure": "Macro de estructura",
     "role": "Rol",
@@ -246,7 +249,8 @@
       "output-format": "Ej: Tabla con columnas…, JSON con campos…",
       "examples": "Ejemplo de entrada/salida…"
     },
-    "segmentHintPrefix": "Sugerencia"
+    "segmentHintPrefix": "Sugerencia",
+    "manualInputLabel": "Escribir manualmente"
   },
   "skillBuilder": {
     "title": "Skill Builder",
