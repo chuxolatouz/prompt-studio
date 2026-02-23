@@ -138,6 +138,16 @@
       "description": "Elige qué quieres construir hoy.",
       "open": "Abrir"
     },
+    "account": {
+      "title": "Accede para guardar y dar like",
+      "description": "Con tu cuenta puedes crear skills, guardar contenido y marcar favoritos en la galería.",
+      "createSkillTitle": "Crear skill",
+      "createSkillDescription": "Entra o regístrate para crear y publicar tus skills.",
+      "saveTitle": "Guardar en tu cuenta",
+      "saveDescription": "Guarda tu trabajo y accede desde tu dashboard.",
+      "likeTitle": "Dar like",
+      "likeDescription": "Marca prompts favoritos en la galería pública."
+    },
     "differentialTitle": "Por qué usar Prompt Studio",
     "differentialDesc": "Un flujo claro para no expertos, sin limitar a power users.",
     "diff1": "Modo juego para onboarding y modo pro para edición rápida.",

@@ -136,6 +136,16 @@
       "description": "Drag & drop canvas for non-experts with live preview.",
       "open": "Open Builders"
     },
+    "account": {
+      "title": "Sign in to save and like",
+      "description": "With an account you can create skills, save content, and like prompts in the gallery.",
+      "createSkillTitle": "Create skill",
+      "createSkillDescription": "Sign in or register to create and publish your skills.",
+      "saveTitle": "Save to your account",
+      "saveDescription": "Keep your work and open it later from your dashboard.",
+      "likeTitle": "Like prompts",
+      "likeDescription": "Add prompts to favorites in the public gallery."
+    },
     "differentialTitle": "prompteero differential",
     "differentialDesc": "Built for beginners with visual-first UX.",
     "diff1": "Canvas drag & drop + 3 modules (Prompt / Skill / Agent) with non-expert UX.",
