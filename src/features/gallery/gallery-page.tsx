@@ -156,7 +156,7 @@ export function GalleryPage() {
     if (isFav) {
       const {error} = await supabase.from('favorites').delete().eq('user_id', user.id).eq('prompt_id', promptId);
       if (error) {
-        toast.error(error.message);
+        toast.error(t('common.genericError'));
         return;
       }
 
@@ -172,7 +172,7 @@ export function GalleryPage() {
 
     const {error} = await supabase.from('favorites').insert({user_id: user.id, prompt_id: promptId});
     if (error) {
-      toast.error(error.message);
+      toast.error(t('common.genericError'));
       return;
     }
 
@@ -201,7 +201,7 @@ export function GalleryPage() {
     const applyAutoFavorite = async () => {
       const {error} = await supabase.from('favorites').insert({user_id: user.id, prompt_id: promptId});
       if (error) {
-        toast.error(error.message);
+        toast.error(t('common.genericError'));
         router.replace(pathname);
         return;
       }
@@ -298,8 +298,7 @@ export function GalleryPage() {
             <Card>
               <CardContent className="space-y-3 pt-4 text-sm text-slate-600">
                 <p className="text-base font-semibold text-slate-900">{t('gallery.emptyTitle')}</p>
-                <p>{t('gallery.emptyWithExamples')}</p>
-                <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">{t('gallery.seedExamples')}</p>
+                <p>{t('gallery.empty')}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button asChild>
                     <Link href="/prompt-builder">{t('gallery.emptyCta')}</Link>

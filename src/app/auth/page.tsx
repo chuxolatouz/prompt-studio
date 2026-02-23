@@ -119,11 +119,11 @@ export default function AuthPage() {
         </div>
         <div className="space-y-1">
           <p className="text-sm font-medium text-slate-700">{t('auth.email')}</p>
-          <Input placeholder="correo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input placeholder={t('auth.emailPlaceholder')} value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="space-y-1">
           <p className="text-sm font-medium text-slate-700">{t('auth.password')}</p>
-          <Input type="password" placeholder="********" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input type="password" placeholder={t('auth.passwordPlaceholder')} value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         <Button className="w-full" onClick={submit}>
           {t('auth.continue')}

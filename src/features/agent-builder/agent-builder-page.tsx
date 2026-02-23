@@ -83,20 +83,13 @@ export function AgentBuilderPage() {
   const t = useTranslations();
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const antiHallucinationPolicies = [
-    'Si falta información, haz preguntas antes de asumir.',
-    'No inventes datos; marca incertidumbre.',
-    'Diferencia hechos de suposiciones.',
-    'Respeta estrictamente el formato de salida solicitado.',
-  ];
-
   const [title, setTitle] = useState('');
   const [role, setRole] = useState('');
   const [objective, setObjective] = useState('');
   const [inputs, setInputs] = useState<string[]>(['']);
   const [steps, setSteps] = useState<AgentStep[]>([{id: crypto.randomUUID(), step: '', doneCriteria: ''}]);
   const [tools, setTools] = useState<string[]>([]);
-  const [policies, setPolicies] = useState<string[]>(antiHallucinationPolicies);
+  const [policies, setPolicies] = useState<string[]>(() => t('agentBuilder.defaultPolicies').split('\n').map((item) => item.trim()).filter(Boolean));
   const [outputContract, setOutputContract] = useState(() => t('agentBuilder.outputContractDefault'));
 
   const localSkillPack = readLocal<any>(storageKeys.skillPacks, null);
@@ -181,7 +174,7 @@ export function AgentBuilderPage() {
     };
     const parsed = agentSpecSchema.safeParse(payload);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('agentBuilder.invalid'));
+      toast.error(t('agentBuilder.invalid'));
       return;
     }
     writeLocal(storageKeys.agents, parsed.data);
@@ -204,7 +197,7 @@ export function AgentBuilderPage() {
 
     const parsed = agentSpecSchema.safeParse(spec);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('agentBuilder.invalid'));
+      toast.error(t('agentBuilder.invalid'));
       return;
     }
 
@@ -222,6 +215,7 @@ export function AgentBuilderPage() {
 
     const blob = await zip.generateAsync({type: 'blob'});
     downloadBlob(`${slugify(title || 'agent')}.zip`, blob, 'application/zip');
+    toast.success(t('actions.exported'));
   };
 
   return (
@@ -520,7 +514,6 @@ export function AgentBuilderPage() {
                     <DropdownMenuItem
                       onSelect={() => {
                         void exportBundle();
-                        toast.success(t('actions.exported'));
                       }}
                     >
                       {t('agentBuilder.exportBundle')}

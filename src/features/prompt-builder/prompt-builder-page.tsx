@@ -56,6 +56,11 @@ type SeedBlock = {
 
 type StructureMacro = {
   id: string;
+  titleKey: string;
+  whatIsKey: string;
+  whenToUseKeys: string[];
+  templateKey: string;
+  exampleKey: string;
   sections: string[];
   macro: {
     columnOrder: SegmentId[];
@@ -67,33 +72,36 @@ type BuilderMode = 'pro' | 'quest';
 type SegmentId = 'role' | 'goal' | 'context' | 'inputs' | 'constraints' | 'output-format' | 'examples';
 
 const SEGMENT_ORDER_DEFAULT: SegmentId[] = ['role', 'goal', 'context', 'inputs', 'constraints', 'output-format', 'examples'];
-const REQUIRED_SEGMENTS: SegmentId[] = ['role', 'goal', 'output-format'];
+const ANTI_HALLUCINATION_ITEM_ID = 'anti-hallucination';
+const STRUCTURE_SEGMENTS: Record<string, SegmentId[]> = {
+  RTF: ['role', 'goal', 'output-format'],
+  TAO: ['goal', 'constraints', 'output-format'],
+  BAB: ['context', 'goal', 'constraints'],
+  CARE: ['context', 'goal', 'output-format', 'examples'],
+  'CO-STAR': ['context', 'goal', 'constraints', 'inputs', 'output-format', 'role'],
+  CRISPE: ['role', 'context', 'goal', 'constraints', 'examples'],
+  STAR: ['context', 'goal', 'constraints', 'output-format'],
+};
 
-const antiHallucinationDefault = [
-  'Si falta informacion, haz preguntas antes de asumir.',
-  'No inventes datos; marca incertidumbre.',
-  'Diferencia hechos de suposiciones.',
-  'Respeta estrictamente el formato de salida solicitado.',
-].join('\n');
-
-function createBaseColumns(): PromptBuilderState['columns'] {
+function createBaseColumns(t: ReturnType<typeof useTranslations>): PromptBuilderState['columns'] {
+  const antiHallucinationDefault = t('promptBuilder.antiHallucinationDefault');
   return [
-    {id: 'role', title: 'Rol', items: []},
-    {id: 'goal', title: 'Objetivo', items: []},
-    {id: 'context', title: 'Contexto', items: []},
-    {id: 'inputs', title: 'Inputs', items: []},
+    {id: 'role', title: t('promptBuilder.columns.role'), items: []},
+    {id: 'goal', title: t('promptBuilder.columns.goal'), items: []},
+    {id: 'context', title: t('promptBuilder.columns.context'), items: []},
+    {id: 'inputs', title: t('promptBuilder.columns.inputs'), items: []},
     {
       id: 'constraints',
-      title: 'Restricciones',
-      items: [{id: 'anti-hallucination', title: 'Verificación de consistencia', content: antiHallucinationDefault, level: 'basic', tags: []}],
+      title: t('promptBuilder.columns.constraints'),
+      items: [{id: ANTI_HALLUCINATION_ITEM_ID, title: t('promptBuilder.antiHallucination'), content: antiHallucinationDefault, level: 'basic', tags: []}],
     },
-    {id: 'output-format', title: 'Formato de salida', items: []},
-    {id: 'examples', title: 'Ejemplos', items: []},
+    {id: 'output-format', title: t('promptBuilder.columns.output-format'), items: []},
+    {id: 'examples', title: t('promptBuilder.columns.examples'), items: []},
   ];
 }
 
-function normalizeColumns(columns: PromptBuilderState['columns']): PromptBuilderState['columns'] {
-  const base = createBaseColumns();
+function normalizeColumns(columns: PromptBuilderState['columns'], t: ReturnType<typeof useTranslations>): PromptBuilderState['columns'] {
+  const base = createBaseColumns(t);
   const byId = new Map(columns.map((column) => [column.id, column]));
   return base.map((column) => byId.get(column.id) ?? column);
 }
@@ -105,8 +113,28 @@ function normalizeSegmentOrder(order: string[] | undefined, columns: PromptBuild
   return [...source, ...missing];
 }
 
-function normalizeState(state: PromptBuilderState): PromptBuilderState {
-  const columns = normalizeColumns(state.columns);
+function getStructureSegments(structureId: string, order: SegmentId[]): SegmentId[] {
+  const configured = STRUCTURE_SEGMENTS[structureId] ?? SEGMENT_ORDER_DEFAULT;
+  return order.filter((segmentId) => configured.includes(segmentId));
+}
+
+function getStructureLabel(structureId: string) {
+  return structureId === 'CARE' ? 'CASE' : structureId;
+}
+
+function normalizeSystemItems(columns: PromptBuilderState['columns'], t: ReturnType<typeof useTranslations>): PromptBuilderState['columns'] {
+  const antiHallucinationTitle = t('promptBuilder.antiHallucination');
+  return columns.map((column) => {
+    if (column.id !== 'constraints') return column;
+    return {
+      ...column,
+      items: column.items.map((item) => (item.id === ANTI_HALLUCINATION_ITEM_ID ? {...item, title: antiHallucinationTitle} : item)),
+    };
+  });
+}
+
+function normalizeState(state: PromptBuilderState, t: ReturnType<typeof useTranslations>): PromptBuilderState {
+  const columns = normalizeSystemItems(normalizeColumns(state.columns, t), t);
   const segmentOrder = normalizeSegmentOrder(state.segmentOrder, columns);
   return {
     ...state,
@@ -118,11 +146,11 @@ function normalizeState(state: PromptBuilderState): PromptBuilderState {
   };
 }
 
-function createInitialState(): PromptBuilderState {
+function createInitialState(t: ReturnType<typeof useTranslations>): PromptBuilderState {
   const parsed = promptBuilderDraftSchema.safeParse(readLocal(storageKeys.promptDrafts, null));
   if (parsed.success) {
     const fromDraft = promptBuilderStateSchema.safeParse(parsed.data.state);
-    if (fromDraft.success) return normalizeState(fromDraft.data);
+    if (fromDraft.success) return normalizeState(fromDraft.data, t);
   }
 
   return {
@@ -133,7 +161,7 @@ function createInitialState(): PromptBuilderState {
     niche: 'all',
     antiHallucination: true,
     tags: [],
-    columns: createBaseColumns(),
+    columns: createBaseColumns(t),
     segmentOrder: SEGMENT_ORDER_DEFAULT,
     macro: 'RTF',
     onboardingCompleted: false,
@@ -339,7 +367,7 @@ export function PromptBuilderPage() {
   const searchParams = useSearchParams();
 
   const initialDraft = promptBuilderDraftSchema.safeParse(readLocal(storageKeys.promptDrafts, null));
-  const initialState = createInitialState();
+  const initialState = createInitialState(t);
   const storedPrefs = readLocal<{onboardingCompleted: boolean; preferredMode: BuilderMode} | null>(storageKeys.promptBuilderPrefs, null);
 
   const initialOnboardingCompleted = initialState.onboardingCompleted || storedPrefs?.onboardingCompleted || false;
@@ -368,12 +396,17 @@ export function PromptBuilderPage() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialDraft.success ? initialDraft.data.updatedAt : null);
   const [timeTick, setTimeTick] = useState(0);
+  const [structureChecklist, setStructureChecklist] = useState<Record<string, boolean>>({});
 
   const publishAutoTriggeredRef = useRef(false);
   const questCelebratedRef = useRef(false);
 
   const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 8}}));
   const structures = structuresSeed as StructureMacro[];
+  const currentStructure = useMemo(
+    () => structures.find((entry) => entry.id === state.structure) ?? structures[0],
+    [structures, state.structure]
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => setTimeTick((prev) => prev + 1), 30000);
@@ -402,21 +435,25 @@ export function PromptBuilderPage() {
   };
 
   const ensureAntiHallucination = (columns: PromptBuilderState['columns'], enabled: boolean) => {
+    const antiHallucinationDefault = t('promptBuilder.antiHallucinationDefault');
     const next = [...columns];
     const cIndex = next.findIndex((column) => column.id === 'constraints');
     if (cIndex === -1) return next;
 
-    const hasBlock = next[cIndex].items.some((item) => item.id === 'anti-hallucination');
+    const hasBlock = next[cIndex].items.some((item) => item.id === ANTI_HALLUCINATION_ITEM_ID);
     if (enabled && !hasBlock) {
       next[cIndex] = {
         ...next[cIndex],
-        items: [{id: 'anti-hallucination', title: 'Verificación de consistencia', content: antiHallucinationDefault, level: 'basic', tags: []}, ...next[cIndex].items],
+        items: [
+          {id: ANTI_HALLUCINATION_ITEM_ID, title: t('promptBuilder.antiHallucination'), content: antiHallucinationDefault, level: 'basic', tags: []},
+          ...next[cIndex].items,
+        ],
       };
     }
     if (!enabled && hasBlock) {
-      next[cIndex] = {...next[cIndex], items: next[cIndex].items.filter((item) => item.id !== 'anti-hallucination')};
+      next[cIndex] = {...next[cIndex], items: next[cIndex].items.filter((item) => item.id !== ANTI_HALLUCINATION_ITEM_ID)};
     }
-    return next;
+    return normalizeSystemItems(next, t);
   };
 
   const applyMacro = (macroId: string) => {
@@ -424,7 +461,7 @@ export function PromptBuilderPage() {
     if (!structure) return;
 
     setState((prev) => {
-      const columns = normalizeColumns(ensureAntiHallucination(prev.columns, prev.antiHallucination));
+      const columns = normalizeColumns(ensureAntiHallucination(prev.columns, prev.antiHallucination), t);
       return {
         ...prev,
         structure: macroId,
@@ -435,13 +472,28 @@ export function PromptBuilderPage() {
     });
 
     setMacroModalOpen(false);
-    toast.success(t('promptBuilder.macroAppliedToast', {macro: macroId}));
+    toast.success(t('promptBuilder.macroAppliedToast', {macro: getStructureLabel(macroId)}));
+  };
+
+  const handleStructureChange = (nextStructure: string) => {
+    const structure = structures.find((item) => item.id === nextStructure);
+    setState((prev) => {
+      const columns = normalizeColumns(ensureAntiHallucination(prev.columns, prev.antiHallucination), t);
+      return {
+        ...prev,
+        structure: nextStructure,
+        macro: nextStructure,
+        segmentOrder: structure ? normalizeSegmentOrder(structure.macro.columnOrder, columns) : prev.segmentOrder,
+        columns,
+      };
+    });
   };
 
   const segmentOrder = useMemo(() => normalizeSegmentOrder(state.segmentOrder, state.columns), [state.segmentOrder, state.columns]);
+  const structureSegments = useMemo(() => getStructureSegments(state.structure, segmentOrder), [state.structure, segmentOrder]);
 
   const visibleColumns = useMemo(() => {
-    const ordered = segmentOrder
+    const ordered = structureSegments
       .map((segmentId) => state.columns.find((column) => column.id === segmentId))
       .filter(Boolean) as PromptBuilderState['columns'];
 
@@ -449,7 +501,7 @@ export function PromptBuilderPage() {
       if (column.id === 'constraints') return state.antiHallucination || column.items.length > 0;
       return true;
     });
-  }, [segmentOrder, state.columns, state.antiHallucination]);
+  }, [structureSegments, state.columns, state.antiHallucination]);
 
   const getSegmentContents = useCallback((segmentId: SegmentId) => {
     const column = getColumnById(state.columns, segmentId);
@@ -473,27 +525,40 @@ export function PromptBuilderPage() {
     }
   };
 
-  const roleReady = getSegmentContents('role').length > 0;
-  const goalReady = getSegmentContents('goal').length > 0;
-  const formatReady = getSegmentContents('output-format').length > 0;
-  const hasPreviewContent = segmentOrder.some((segmentId) => getSegmentContents(segmentId).length > 0);
-  const canPublishByMinimum = roleReady && goalReady && formatReady;
-  const missingSegments = [
-    roleReady ? null : 'role',
-    goalReady ? null : 'goal',
-    formatReady ? null : 'output-format',
-  ].filter(Boolean) as SegmentId[];
+  const requiredSegments = useMemo(
+    () => visibleColumns.map((column) => column.id as SegmentId),
+    [visibleColumns]
+  );
+  const hasPreviewContent = requiredSegments.some((segmentId) => getSegmentContents(segmentId).length > 0);
+  const missingSegments = requiredSegments.filter((segmentId) => getSegmentContents(segmentId).length === 0);
+  const canPublishByMinimum = missingSegments.length === 0 && requiredSegments.length > 0;
   const missingLabels = missingSegments.map((segmentId) => getColumnLabel(t, segmentId, segmentId));
   const missingList = missingLabels.join(', ');
   const firstMissingSegment = missingSegments[0] ?? null;
+  const requiredList = requiredSegments.map((segmentId) => getColumnLabel(t, segmentId, segmentId)).join(', ');
 
-  const publishDisabledReason = !roleReady
-    ? t('promptBuilder.publishMissingRole')
-    : !goalReady
-      ? t('promptBuilder.publishMissingGoal')
-      : !formatReady
-        ? t('promptBuilder.publishMissingFormat')
-        : '';
+  const publishDisabledReason = canPublishByMinimum
+    ? ''
+    : t('promptBuilder.publishBlockedTextDynamic', {items: missingList || requiredList});
+  const checklistEntries = useMemo(
+    () =>
+      requiredSegments.map((segmentId) => {
+        const key = `${state.structure}:${segmentId}`;
+        const contentReady = getSegmentContents(segmentId).length > 0;
+        return {
+          segmentId,
+          key,
+          label: getColumnLabel(t, segmentId, segmentId),
+          contentReady,
+          checked: structureChecklist[key] ?? contentReady,
+        };
+      }),
+    [requiredSegments, state.structure, getSegmentContents, structureChecklist, t]
+  );
+
+  const toggleChecklist = (entryKey: string, nextValue: boolean) => {
+    setStructureChecklist((prev) => ({...prev, [entryKey]: nextValue}));
+  };
 
   const filteredBlocks = useMemo(() => {
     const selectedNiche = state.niche ?? 'all';
@@ -510,7 +575,7 @@ export function PromptBuilderPage() {
   const composedPrompt = useMemo(() => {
     const lines: string[] = [];
 
-    segmentOrder.forEach((segmentId) => {
+    requiredSegments.forEach((segmentId) => {
       const contents = getSegmentContents(segmentId);
       if (!contents.length) return;
       const label = getColumnLabel(t, segmentId, segmentId);
@@ -518,13 +583,14 @@ export function PromptBuilderPage() {
     });
 
     return lines.join('\n\n');
-  }, [segmentOrder, getSegmentContents, t]);
+  }, [requiredSegments, getSegmentContents, t]);
 
   const macroPreviewOrder = useMemo(() => {
     const structure = structures.find((item) => item.id === selectedMacroId);
-    if (!structure) return segmentOrder;
-    return normalizeSegmentOrder(structure.macro.columnOrder, state.columns);
-  }, [selectedMacroId, structures, segmentOrder, state.columns]);
+    if (!structure) return requiredSegments;
+    const normalized = normalizeSegmentOrder(structure.macro.columnOrder, state.columns);
+    return getStructureSegments(selectedMacroId, normalized);
+  }, [selectedMacroId, structures, requiredSegments, state.columns]);
 
   const lastSavedLabel = formatRelativeTime(t, lastSavedAt, timeTick);
 
@@ -649,7 +715,7 @@ export function PromptBuilderPage() {
 
     const parsed = promptBuilderStateSchema.safeParse(draftState);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
+      toast.error(t('promptBuilder.invalid'));
       return;
     }
 
@@ -670,7 +736,7 @@ export function PromptBuilderPage() {
 
     const parsed = promptBuilderStateSchema.safeParse({...state, segmentOrder, preferredMode: mode, onboardingCompleted});
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
+      toast.error(t('promptBuilder.invalid'));
       return;
     }
 
@@ -685,7 +751,7 @@ export function PromptBuilderPage() {
           title: parsed.data.title || t('promptBuilder.untitled'),
           macro: parsed.data.macro || parsed.data.structure,
           structure: parsed.data.structure,
-          segmentOrder,
+          segmentOrder: requiredSegments,
           tags: parsed.data.tags,
           exportedAt: new Date().toISOString(),
         },
@@ -705,7 +771,7 @@ export function PromptBuilderPage() {
     }
 
     if (!canPublishByMinimum) {
-      toast.error(`${t('promptBuilder.publishBlockedTitle')}. ${t('promptBuilder.publishBlockedText')}`);
+      toast.error(`${t('promptBuilder.publishBlockedTitle')}. ${t('promptBuilder.publishBlockedTextDynamic', {items: missingList || requiredList})}`);
       if (firstMissingSegment) focusSegment(firstMissingSegment);
       return;
     }
@@ -717,7 +783,7 @@ export function PromptBuilderPage() {
 
     const parsed = promptBuilderStateSchema.safeParse({...state, segmentOrder, preferredMode: mode, onboardingCompleted});
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
+      toast.error(t('promptBuilder.invalid'));
       return;
     }
 
@@ -740,12 +806,12 @@ export function PromptBuilderPage() {
     });
 
     if (error) {
-      toast.error(error.message);
+      toast.error(t('common.genericError'));
       return;
     }
 
     toast.success(t('promptBuilder.published'));
-  }, [canPublishByMinimum, composedPrompt, firstMissingSegment, mode, onboardingCompleted, segmentOrder, state, t, user]);
+  }, [canPublishByMinimum, composedPrompt, firstMissingSegment, missingList, mode, onboardingCompleted, requiredList, segmentOrder, state, t, user]);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -797,7 +863,7 @@ export function PromptBuilderPage() {
     toast.success(t('promptBuilder.questPlaced', {segment: getColumnLabel(t, slotId, slotId)}));
   };
 
-  const questMinimumReady = REQUIRED_SEGMENTS.every((segmentId) => questBoard[segmentId]);
+  const questMinimumReady = requiredSegments.every((segmentId) => questBoard[segmentId]);
 
   useEffect(() => {
     if (!questMinimumReady || onboardingCompleted || questCelebratedRef.current) return;
@@ -841,23 +907,23 @@ export function PromptBuilderPage() {
               <SelectValue placeholder={t('promptBuilder.structure')} />
             </SelectTrigger>
             <SelectContent>
-              {structures.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.id}
-                </SelectItem>
-              ))}
-            </SelectContent>
+                  {structures.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {getStructureLabel(item.id)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
           </Select>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.beforeOrder')}</p>
-            <div className="space-y-1">
-              {segmentOrder.map((segmentId, index) => (
-                <p key={segmentId} className="text-sm text-slate-700">
-                  {index + 1}. {getColumnLabel(t, segmentId, segmentId)}
-                </p>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.beforeOrder')}</p>
+                <div className="space-y-1">
+                  {requiredSegments.map((segmentId, index) => (
+                    <p key={segmentId} className="text-sm text-slate-700">
+                      {index + 1}. {getColumnLabel(t, segmentId, segmentId)}
+                    </p>
               ))}
             </div>
           </div>
@@ -889,14 +955,14 @@ export function PromptBuilderPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-slate-700">{t('promptBuilder.structure')}</span>
                 <StepHelp tooltip={t('help.prompt.macro')} />
-                <Select value={state.structure} onValueChange={(value) => setState((prev) => ({...prev, structure: value, macro: value}))}>
+                <Select value={state.structure} onValueChange={handleStructureChange}>
                   <SelectTrigger className="w-[120px] md:w-[160px]">
                     <SelectValue placeholder={t('promptBuilder.structure')} />
                   </SelectTrigger>
                   <SelectContent>
                     {structures.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
-                        {item.id}
+                        {getStructureLabel(item.id)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -942,6 +1008,43 @@ export function PromptBuilderPage() {
         <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
             <div className="space-y-6 pb-20">
+              <Card glow className="border-blue-100 bg-white">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">{t('promptBuilder.structureTypeTitle')}</CardTitle>
+                    <StepHelp tooltip={t('help.prompt.macro')} />
+                  </div>
+                  <CardDescription>{t('promptBuilder.structureTypeDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Select value={state.structure} onValueChange={handleStructureChange}>
+                    <SelectTrigger className="w-full max-w-[260px]">
+                      <SelectValue placeholder={t('promptBuilder.structure')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {structures.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {getStructureLabel(item.id)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {currentStructure ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-sm font-semibold text-slate-900">{t('promptBuilder.structureGuideTitle', {structure: getStructureLabel(currentStructure.id)})}</p>
+                      <p className="mt-1 text-sm text-slate-600">{t(currentStructure.whatIsKey)}</p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('structuresPage.whenToUse')}</p>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {currentStructure.whenToUseKeys.map((key) => (
+                          <li key={key}>{t(key)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+
               {mode === 'quest' && (
                 <Card glow className="border-emerald-200 bg-emerald-50/50">
                   <CardHeader>
@@ -949,8 +1052,8 @@ export function PromptBuilderPage() {
                     <CardDescription>{t('promptBuilder.questSubtitle')}</CardDescription>
                     <p className="text-xs font-medium text-emerald-700">
                       {t('promptBuilder.questProgress', {
-                        done: Object.values(questBoard).filter(Boolean).length,
-                        total: segmentOrder.length,
+                        done: requiredSegments.filter((segmentId) => questBoard[segmentId]).length,
+                        total: requiredSegments.length,
                       })}
                     </p>
                   </CardHeader>
@@ -958,7 +1061,7 @@ export function PromptBuilderPage() {
                     <div className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questCards')}</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {segmentOrder.map((segmentId) => (
+                        {requiredSegments.map((segmentId) => (
                           <button
                             key={`quest-card-${segmentId}`}
                             draggable
@@ -975,7 +1078,7 @@ export function PromptBuilderPage() {
                     <div className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questBoard')}</p>
                       <div className="space-y-2">
-                        {segmentOrder.map((segmentId) => {
+                        {requiredSegments.map((segmentId) => {
                           const placed = questBoard[segmentId];
                           return (
                             <div
@@ -1010,7 +1113,7 @@ export function PromptBuilderPage() {
                           <Button onClick={continueToPro}>{t('promptBuilder.continuePro')}</Button>
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-600">{t('promptBuilder.questHint')}</p>
+                        <p className="text-sm text-slate-600">{t('promptBuilder.questHintDynamic', {items: requiredList})}</p>
                       )}
                     </div>
                   </CardContent>
@@ -1045,6 +1148,7 @@ export function PromptBuilderPage() {
                   </Select>
                   <div className="flex items-center gap-2 md:col-span-2">
                     <span className="text-sm font-medium text-slate-700">{t('promptBuilder.antiHallucination')}</span>
+                    <StepHelp tooltip={t('promptBuilder.antiHallucinationTooltip')} />
                     <Switch
                       checked={state.antiHallucination}
                       aria-label={t('promptBuilder.antiHallucination')}
@@ -1067,9 +1171,9 @@ export function PromptBuilderPage() {
                   <CardDescription>{t('promptBuilder.finalOrderDescription')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <SortableContext items={segmentOrder.map((segmentId) => `segment-order-${segmentId}`)} strategy={verticalListSortingStrategy}>
+                  <SortableContext items={requiredSegments.map((segmentId) => `segment-order-${segmentId}`)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-2">
-                      {segmentOrder.map((segmentId, index) => (
+                      {requiredSegments.map((segmentId, index) => (
                         <SegmentOrderItem
                           key={segmentId}
                           segmentId={segmentId}
@@ -1078,7 +1182,7 @@ export function PromptBuilderPage() {
                           onMoveUp={moveSegmentUp}
                           onMoveDown={moveSegmentDown}
                           canMoveUp={index > 0}
-                          canMoveDown={index < segmentOrder.length - 1}
+                          canMoveDown={index < requiredSegments.length - 1}
                           moveUpLabel={t('promptBuilder.moveUp')}
                           moveDownLabel={t('promptBuilder.moveDown')}
                           reorderLabel={t('common.reorder')}
@@ -1135,7 +1239,7 @@ export function PromptBuilderPage() {
 
               <Card className={canPublishByMinimum ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-200 bg-amber-50/40'}>
                 <CardContent className="space-y-2 pt-4">
-                  <p className="text-sm font-medium text-slate-800">{t('promptBuilder.minimumsToPublish')}</p>
+                  <p className="text-sm font-medium text-slate-800">{t('promptBuilder.minimumsToPublishDynamic', {structure: getStructureLabel(state.structure), items: requiredList})}</p>
                   {canPublishByMinimum ? (
                     <p className="text-sm text-emerald-700">{t('promptBuilder.readyToPublish')}</p>
                   ) : (
@@ -1228,12 +1332,33 @@ export function PromptBuilderPage() {
 
             <div className="hidden lg:block">
               <div className="sticky top-[140px] space-y-4">
+                <Card glow className="border-emerald-100 bg-white shadow-lg">
+                  <CardHeader className="bg-emerald-50/40 pb-3">
+                    <CardTitle className="text-sm">{t('promptBuilder.structureChecklistTitle', {structure: getStructureLabel(state.structure)})}</CardTitle>
+                    <CardDescription>{t('promptBuilder.structureChecklistDescription')}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2 px-3 py-3">
+                    {checklistEntries.map((entry) => (
+                      <label key={entry.key} className="flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-[color:var(--prompteero-blue)]"
+                          checked={entry.checked}
+                          onChange={(event) => toggleChecklist(entry.key, event.target.checked)}
+                        />
+                        <span className="flex-1 text-slate-800">{entry.label}</span>
+                        <Badge variant={entry.contentReady ? 'default' : 'secondary'}>{entry.contentReady ? t('promptBuilder.complete') : t('promptBuilder.pending')}</Badge>
+                      </label>
+                    ))}
+                  </CardContent>
+                </Card>
+
                 <Card glow className="border-blue-100 bg-white shadow-lg">
                   <CardHeader className="bg-slate-50/50 pb-3">
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-sm">{t('promptBuilder.preview')}</CardTitle>
                       <Badge variant="outline" className="font-mono text-[10px]">
-                        {state.structure}
+                        {getStructureLabel(state.structure)}
                       </Badge>
                     </div>
                     <p className="text-xs text-slate-500">{t('promptBuilder.lastSaved', {value: lastSavedLabel})}</p>

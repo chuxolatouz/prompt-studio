@@ -30,9 +30,9 @@ function assertPluralKey(key: string, mustInclude: string[]) {
   }
 }
 
-assertPluralKey('agentBuilder.stepsCount', ['one {# paso}', 'other {# pasos}']);
-assertPluralKey('agentBuilder.toolsCount', ['one {# herramienta}', 'other {# herramientas}']);
-assertPluralKey('skillBuilder.skillsCount', ['one {# skill}', 'other {# skills}']);
+assertPluralKey('agentBuilder.stepsCount', ['=0 {0 pasos}', 'one {# paso}', 'other {# pasos}']);
+assertPluralKey('agentBuilder.toolsCount', ['=0 {0 herramientas}', 'one {# herramienta}', 'other {# herramientas}']);
+assertPluralKey('skillBuilder.skillsCount', ['=0 {0 skills}', 'one {# skill}', 'other {# skills}']);
 assertPluralKey('common.minutesAgo', ['one {hace # min}', 'other {hace # min}']);
 assertPluralKey('common.hoursAgo', ['one {hace # h}', 'other {hace # h}']);
 assertPluralKey('common.daysAgo', ['one {hace # día}', 'other {hace # días}']);

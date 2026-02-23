@@ -96,7 +96,7 @@ export function SkillBuilderPage() {
   const saveLocal = () => {
     const parsed = skillPackSchema.safeParse(pack);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('skillBuilder.invalid'));
+      toast.error(t('skillBuilder.invalid'));
       return;
     }
     writeLocal(storageKeys.skillPacks, parsed.data);
@@ -106,7 +106,7 @@ export function SkillBuilderPage() {
   const exportZip = async () => {
     const parsed = skillPackSchema.safeParse(pack);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('skillBuilder.invalid'));
+      toast.error(t('skillBuilder.invalid'));
       return;
     }
 

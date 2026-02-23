@@ -40,6 +40,9 @@ const forbidden = [
   'Export Bundle (.zip)',
   'Prompt Structure',
   'Login / Register',
+  'Public Gallery',
+  'View detail',
+  'Sign in to continue',
 ];
 
 for (const token of forbidden) {
@@ -56,6 +59,9 @@ const requiredPairs: Array<[string, string]> = [
   ['agentBuilder.exportBundle', 'Exportar bundle (.zip)'],
   ['auth.requiredTitle', 'Inicia sesión para continuar'],
   ['auth.requiredDesc', 'Necesitas una cuenta para publicar o guardar en favoritos.'],
+  ['common.genericError', 'Ocurrió un error. Intenta de nuevo.'],
+  ['promptBuilder.antiHallucinationTooltip', 'Añade reglas para reducir errores e inventos.'],
+  ['gallery.empty', 'Publica el primero y ayúdanos a iniciar la biblioteca.'],
   ['actions.copy', 'Copiar'],
   ['actions.export', 'Exportar'],
   ['actions.saveDraft', 'Guardar borrador'],

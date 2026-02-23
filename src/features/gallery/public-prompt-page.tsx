@@ -183,7 +183,7 @@ export function PublicPromptPage({slug}: {slug: string}) {
     });
 
     if (error) {
-      toast.error(error.message);
+      toast.error(t('common.genericError'));
       return;
     }
 
@@ -203,7 +203,7 @@ export function PublicPromptPage({slug}: {slug: string}) {
     if (isFavorite) {
       const {error} = await supabase.from('favorites').delete().eq('user_id', user.id).eq('prompt_id', item.id);
       if (error) {
-        toast.error(error.message);
+        toast.error(t('common.genericError'));
         return;
       }
       setIsFavorite(false);
@@ -214,7 +214,7 @@ export function PublicPromptPage({slug}: {slug: string}) {
 
     const {error} = await supabase.from('favorites').insert({user_id: user.id, prompt_id: item.id});
     if (error) {
-      toast.error(error.message);
+      toast.error(t('common.genericError'));
       return;
     }
 
