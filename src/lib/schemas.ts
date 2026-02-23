@@ -17,7 +17,7 @@ export const promptColumnSchema = z.object({
 });
 
 export const promptBuilderStateSchema = z.object({
-  version: z.literal(1),
+  version: z.number().int().default(2),
   title: z.string(),
   role: z.string().optional(),
   structure: z.string(),
@@ -25,6 +25,10 @@ export const promptBuilderStateSchema = z.object({
   antiHallucination: z.boolean().default(true),
   tags: z.array(z.string()).default([]),
   columns: z.array(promptColumnSchema),
+  segmentOrder: z.array(z.string()).default(['role', 'goal', 'context', 'inputs', 'constraints', 'output-format', 'examples']),
+  macro: z.string().optional(),
+  onboardingCompleted: z.boolean().default(false),
+  preferredMode: z.enum(['pro', 'quest']).default('pro'),
 });
 
 export const promptBuilderDraftSchema = z.object({

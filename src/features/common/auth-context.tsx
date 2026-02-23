@@ -12,6 +12,7 @@ type AuthContextValue = {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{error?: string}>;
   signUp: (email: string, password: string) => Promise<{error?: string}>;
+  resetPassword: (email: string) => Promise<{error?: string}>;
   signOut: () => Promise<void>;
 };
 
@@ -22,7 +23,7 @@ async function syncProfile(user: User | null) {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return {isAdmin: false, profileName: user.email ?? null};
 
-  const displayName = user.email?.split('@')[0] ?? 'User';
+  const displayName = user.email?.split('@')[0] ?? 'Usuario';
   await supabase.from('users_profile').upsert({id: user.id, display_name: displayName}, {onConflict: 'id'});
 
   const {data: profile} = await supabase.from('users_profile').select('is_admin,display_name').eq('id', user.id).single();
@@ -83,6 +84,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         const supabase = getSupabaseBrowserClient();
         if (!supabase) return {error: 'Supabase disabled'};
         const {error} = await supabase.auth.signUp({email, password});
+        return {error: error?.message};
+      },
+      resetPassword: async (email) => {
+        const supabase = getSupabaseBrowserClient();
+        if (!supabase) return {error: 'Supabase disabled'};
+        const {error} = await supabase.auth.resetPasswordForEmail(email);
         return {error: error?.message};
       },
       signOut: async () => {

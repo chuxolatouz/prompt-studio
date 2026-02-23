@@ -1,6 +1,7 @@
 const keys = {
   locale: 'promptito.locale',
   promptDrafts: 'promptito.promptDrafts',
+  promptBuilderPrefs: 'promptito.promptBuilderPrefs',
   skillPacks: 'promptito.skillPacks',
   agents: 'promptito.agents',
   user: 'promptito.user',

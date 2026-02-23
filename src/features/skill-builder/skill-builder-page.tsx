@@ -10,6 +10,8 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Textarea} from '@/components/ui/textarea';
+import {StepHelp} from '@/components/ui/step-help';
+import {tPlural} from '@/i18n/helpers';
 import {readLocal, storageKeys, writeLocal} from '@/lib/storage';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {skillPackSchema, SkillPack} from '@/lib/schemas';
@@ -18,8 +20,6 @@ import {toast} from 'sonner';
 function buildSkillMarkdown(skill: SkillPack['skills'][number]) {
   return `---\nname: "${skill.name}"\ndescription: "${skill.description}"\ntags: [${skill.tags.map((tag) => `"${tag}"`).join(', ')}]\nversion: "0.1"\nlanguage: "${skill.language}"\n---\n\n${skill.markdown}`;
 }
-
-import {StepHelp} from '@/components/ui/step-help';
 
 export function SkillBuilderPage() {
   const t = useTranslations();
@@ -52,6 +52,19 @@ export function SkillBuilderPage() {
       name: t('skillBuilder.newSkill'),
       description: '',
       tags: [],
+      language: 'both' as const,
+      markdown: t('skillBuilder.defaultMarkdown'),
+    };
+    setPack((prev) => ({...prev, skills: [...prev.skills, skill]}));
+    setSelectedSkillId(skill.id);
+  };
+
+  const addTemplateSkill = () => {
+    const skill = {
+      id: crypto.randomUUID(),
+      name: t('skillBuilder.newSkill'),
+      description: t('skillBuilder.noDescription'),
+      tags: ['plantilla'],
       language: 'both' as const,
       markdown: t('skillBuilder.defaultMarkdown'),
     };
@@ -126,22 +139,30 @@ export function SkillBuilderPage() {
 
     const blob = await zip.generateAsync({type: 'blob'});
     downloadBlob(`${packSlug}.zip`, blob, 'application/zip');
+    toast.success(t('actions.exported'));
   };
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('skillBuilder.title')}</CardTitle>
+          <CardDescription>{t('skillBuilder.subtitle')}</CardDescription>
+        </CardHeader>
+      </Card>
+
       {/* Sticky Toolbar */}
       <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-lg font-bold text-slate-800">{pack.title || t('skillBuilder.packTitle')}</span>
-            <Badge variant="outline">{t('skillBuilder.skillsCount', {count: pack.skills.length})}</Badge>
+            <Badge variant="outline">{tPlural(t, 'skillBuilder.skillsCount', pack.skills.length)}</Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={saveLocal} disabled={!hasMinimumFields}>
               {t('actions.saveDraft')}
             </Button>
-            <Button variant="secondary" onClick={exportZip} disabled={!hasMinimumFields}>
+            <Button onClick={exportZip} disabled={!hasMinimumFields}>
               {t('skillBuilder.downloadPack')}
             </Button>
           </div>
@@ -216,8 +237,14 @@ export function SkillBuilderPage() {
                 <div className="space-y-2">
                   {pack.skills.length === 0 ? (
                     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center text-slate-500">
-                      <p className="mb-2">{t('skillBuilder.empty')}</p>
-                      <Button onClick={addSkill}>{t('skillBuilder.addSkill')}</Button>
+                      <p className="text-sm font-semibold text-slate-900">{t('skillBuilder.emptyTitle')}</p>
+                      <p className="mb-3 mt-1 text-sm text-slate-600">{t('skillBuilder.empty')}</p>
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <Button onClick={addSkill}>{t('skillBuilder.addSkill')}</Button>
+                        <Button variant="outline" onClick={addTemplateSkill}>
+                          {t('skillBuilder.useTemplate')}
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     pack.skills.map((skill) => (

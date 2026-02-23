@@ -7,6 +7,9 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "test:copy": "tsx scripts/test-copy-es.ts",
+    "test:plural": "tsx scripts/test-plurals.ts",
+    "test:i18n": "npm run test:copy && npm run test:plural",
     "format": "prettier --write .",
     "seed:ghost-gallery": "tsx scripts/seed-ghost-gallery.ts"
   },

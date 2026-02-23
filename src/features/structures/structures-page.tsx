@@ -4,6 +4,7 @@ import {useTranslations} from 'next-intl';
 import structures from '@/data/structures.json';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {StepHelp} from '@/components/ui/step-help';
 import {Textarea} from '@/components/ui/textarea';
 import {toast} from 'sonner';
 
@@ -31,8 +32,11 @@ export function StructuresPage() {
         return (
           <Card key={structure.id}>
             <CardHeader>
-              <CardTitle>
-                {structure.id} - {t(structure.titleKey)}
+              <CardTitle className="flex items-center gap-2">
+                <span>
+                  {structure.id} - {t(structure.titleKey)}
+                </span>
+                <StepHelp tooltip={t('structuresPage.macroTooltip')} />
               </CardTitle>
               <CardDescription>{t(structure.whatIsKey)}</CardDescription>
             </CardHeader>

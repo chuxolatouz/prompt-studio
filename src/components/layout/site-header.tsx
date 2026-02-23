@@ -72,27 +72,9 @@ export function SiteHeader() {
               </Button>
             </>
           ) : !loading ? (
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1">
-              <span className="text-xs font-medium text-slate-600">{t('nav.authSection')}</span>
-              <Link
-                href="/auth?mode=login"
-                className={cn(
-                  'rounded-md px-2 py-1 text-sm',
-                  pathname === '/auth' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700 hover:bg-white'
-                )}
-              >
-                {t('auth.login')}
-              </Link>
-              <Link
-                href="/auth?mode=register"
-                className={cn(
-                  'rounded-md px-2 py-1 text-sm',
-                  pathname === '/auth' ? 'bg-[color:var(--prompteero-blue)] text-white' : 'text-slate-700 hover:bg-white'
-                )}
-              >
-                {t('auth.register')}
-              </Link>
-            </div>
+            <Button asChild size="sm">
+              <Link href="/auth?mode=login">{t('auth.login')}</Link>
+            </Button>
           ) : null}
         </nav>
 
@@ -174,11 +156,8 @@ export function SiteHeader() {
             ) : !loading ? (
               <>
                 <p className="px-2 pt-2 text-xs font-medium text-slate-500">{t('nav.authSection')}</p>
-                <Link href="/auth?mode=login" onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
+                <Link href="/auth?mode=login" onClick={() => setMobileOpen(false)} className="block rounded-lg bg-[color:var(--prompteero-blue)] px-2 py-2 text-sm font-medium text-white hover:bg-[#0f4f87]">
                   {t('auth.login')}
-                </Link>
-                <Link href="/auth?mode=register" onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
-                  {t('auth.register')}
                 </Link>
               </>
             ) : null}

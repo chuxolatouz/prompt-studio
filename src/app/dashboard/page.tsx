@@ -17,15 +17,17 @@ export default function DashboardPage() {
   const [prompts, setPrompts] = useState<Item[]>([]);
   const [packs, setPacks] = useState<Item[]>([]);
   const [agents, setAgents] = useState<Item[]>([]);
+  const [favorites, setFavorites] = useState<Item[]>([]);
 
   useEffect(() => {
-    const localPromptDrafts = readLocal<Array<{title: string}>>(storageKeys.promptDrafts, []);
+    const localPromptDraft = readLocal<{state?: {title?: string}} | null>(storageKeys.promptDrafts, null);
     const localPack = readLocal<any>(storageKeys.skillPacks, null);
     const localAgent = readLocal<any>(storageKeys.agents, null);
 
-    setPrompts(localPromptDrafts.map((item, index) => ({id: `local-p-${index}`, title: item.title || 'Untitled'})));
+    setPrompts(localPromptDraft?.state ? [{id: 'local-p-0', title: localPromptDraft.state.title || t('dashboard.untitled')}] : []);
     setPacks(localPack ? [{id: localPack.id, title: localPack.title}] : []);
     setAgents(localAgent ? [{id: localAgent.id, title: localAgent.title}] : []);
+    setFavorites([]);
 
     if (!featureFlags.supabase || !user) return;
     const supabase = getSupabaseBrowserClient();
@@ -42,7 +44,22 @@ export default function DashboardPage() {
     supabase.from('agents').select('id,title,created_at,visibility').eq('owner_id', user.id).then(({data}) => {
       if (data) setAgents((prev) => [...prev, ...(data as Item[])]);
     });
-  }, [user]);
+
+    supabase
+      .from('favorites')
+      .select('prompt_id')
+      .eq('user_id', user.id)
+      .then(async ({data}) => {
+        const ids = (data ?? []).map((row) => String((row as {prompt_id: string}).prompt_id)).filter(Boolean);
+        if (ids.length === 0) {
+          setFavorites([]);
+          return;
+        }
+
+        const {data: promptData} = await supabase.from('prompts').select('id,title,created_at,visibility').in('id', ids);
+        setFavorites((promptData as Item[]) ?? []);
+      });
+  }, [t, user]);
 
   const Section = ({title, subtitle, items}: {title: string; subtitle: string; items: Item[]}) => (
     <Card>
@@ -57,7 +74,7 @@ export default function DashboardPage() {
           items.map((item) => (
             <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-2">
               <p className="text-sm font-semibold">{item.title}</p>
-              <Badge variant="secondary">{item.visibility || 'local'}</Badge>
+              <Badge variant="secondary">{item.visibility || t('dashboard.local')}</Badge>
             </div>
           ))
         )}
@@ -73,10 +90,11 @@ export default function DashboardPage() {
           <CardDescription>{t('dashboard.subtitle')}</CardDescription>
         </CardHeader>
       </Card>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Section title={t('dashboard.prompts')} subtitle={t('dashboard.myPrompts')} items={prompts} />
         <Section title={t('dashboard.skillPacks')} subtitle={t('dashboard.myPacks')} items={packs} />
         <Section title={t('dashboard.agents')} subtitle={t('dashboard.myAgents')} items={agents} />
+        <Section title={t('dashboard.favorites')} subtitle={t('dashboard.myFavorites')} items={favorites} />
       </div>
     </div>
   );

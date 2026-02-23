@@ -38,7 +38,7 @@ export default function AdminPage() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
-    const payload = status === 'hidden' ? {status, hidden_reason: hiddenReason || 'Hidden by admin'} : {status, hidden_reason: null};
+    const payload = status === 'hidden' ? {status, hidden_reason: hiddenReason || t('gallery.hiddenByAdmin')} : {status, hidden_reason: null};
     await supabase.from('prompts').update(payload).eq('id', targetId);
     await supabase.from('reports').update({status: 'resolved'}).eq('id', reportId);
 

@@ -14,6 +14,7 @@ import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
 import {Badge} from '@/components/ui/badge';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
+import {tPlural} from '@/i18n/helpers';
 import {agentSpecSchema} from '@/lib/schemas';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {readLocal, storageKeys, writeLocal} from '@/lib/storage';
@@ -83,7 +84,7 @@ export function AgentBuilderPage() {
   const sensors = useSensors(useSensor(PointerSensor));
 
   const antiHallucinationPolicies = [
-    'Si falta informacion, haz preguntas antes de asumir.',
+    'Si falta información, haz preguntas antes de asumir.',
     'No inventes datos; marca incertidumbre.',
     'Diferencia hechos de suposiciones.',
     'Respeta estrictamente el formato de salida solicitado.',
@@ -152,7 +153,7 @@ export function AgentBuilderPage() {
 
   const agentsMd = useMemo(() => {
     return [
-      `# ${title || 'Agent'}`,
+      `# ${title || t('agentBuilder.untitled')}`,
       `## ${t('agentBuilder.whatDoes')}\n${objective}`,
       `## ${t('agentBuilder.expectedInputs')}\n${inputs.filter(Boolean).map((value) => `- ${value}`).join('\n')}`,
       `## ${t('agentBuilder.steps')}\n${steps.map((step, index) => `${index + 1}. ${step.step} (${t('agentBuilder.done')}: ${step.doneCriteria})`).join('\n')}`,
@@ -225,19 +226,26 @@ export function AgentBuilderPage() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('agentBuilder.title')}</CardTitle>
+          <CardDescription>{t('agentBuilder.subtitle')}</CardDescription>
+        </CardHeader>
+      </Card>
+
       {/* Sticky Toolbar */}
       <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-lg font-bold text-slate-800">{title || t('agentBuilder.agentTitle')}</span>
-            <Badge variant="outline">{t('agentBuilder.stepsCount', {count: steps.length})}</Badge>
-            <Badge variant="outline">{t('agentBuilder.toolsCount', {count: tools.length})}</Badge>
+            <Badge variant="outline">{tPlural(t, 'agentBuilder.stepsCount', steps.length)}</Badge>
+            <Badge variant="outline">{tPlural(t, 'agentBuilder.toolsCount', tools.length)}</Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={saveLocal} disabled={!hasMinimumFields}>
               {t('actions.saveDraft')}
             </Button>
-            <Button variant="secondary" onClick={exportBundle} disabled={!hasMinimumFields}>
+            <Button onClick={exportBundle} disabled={!hasMinimumFields}>
               {t('agentBuilder.exportBundle')}
             </Button>
           </div>

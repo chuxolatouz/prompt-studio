@@ -15,10 +15,12 @@ export default function AuthPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const {user, signIn, signUp, signOut, loading} = useAuth();
+  const {user, signIn, signUp, resetPassword, signOut, loading} = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const queryMode = searchParams.get('mode');
+  const nextPath = searchParams.get('next');
+  const nextQuery = nextPath ? `&next=${encodeURIComponent(nextPath)}` : '';
   const [mode, setMode] = useState<'login' | 'register'>(queryMode === 'register' ? 'register' : 'login');
 
   useEffect(() => {
@@ -30,6 +32,11 @@ export default function AuthPage() {
       setMode('login');
     }
   }, [queryMode]);
+
+  useEffect(() => {
+    if (!user || !nextPath) return;
+    router.replace(nextPath);
+  }, [user, nextPath, router]);
 
   if (!featureFlags.supabase) {
     return (
@@ -61,10 +68,26 @@ export default function AuthPage() {
   const submit = async () => {
     const response = mode === 'login' ? await signIn(email, password) : await signUp(email, password);
     if (response.error) {
-      toast.error(response.error);
+      toast.error(t('auth.genericError'));
       return;
     }
     toast.success(t(mode === 'login' ? 'auth.loginSuccess' : 'auth.registerSuccess'));
+    if (nextPath) {
+      router.push(nextPath);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      toast.error(t('auth.resetNeedsEmail'));
+      return;
+    }
+    const response = await resetPassword(email.trim());
+    if (response.error) {
+      toast.error(t('auth.genericError'));
+      return;
+    }
+    toast.success(t('auth.resetSent'));
   };
 
   return (
@@ -79,7 +102,7 @@ export default function AuthPage() {
             variant={mode === 'login' ? 'default' : 'outline'}
             onClick={() => {
               setMode('login');
-              router.replace(`${pathname}?mode=login`);
+              router.replace(`${pathname}?mode=login${nextQuery}`);
             }}
           >
             {t('auth.login')}
@@ -88,17 +111,28 @@ export default function AuthPage() {
             variant={mode === 'register' ? 'default' : 'outline'}
             onClick={() => {
               setMode('register');
-              router.replace(`${pathname}?mode=register`);
+              router.replace(`${pathname}?mode=register${nextQuery}`);
             }}
           >
             {t('auth.register')}
           </Button>
         </div>
-        <Input placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Input type="password" placeholder="********" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-slate-700">{t('auth.email')}</p>
+          <Input placeholder="correo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-slate-700">{t('auth.password')}</p>
+          <Input type="password" placeholder="********" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
         <Button className="w-full" onClick={submit}>
-          {mode === 'login' ? t('auth.login') : t('auth.register')}
+          {t('auth.continue')}
         </Button>
+        {mode === 'login' ? (
+          <button type="button" onClick={handleResetPassword} className="text-xs font-medium text-blue-700 underline underline-offset-2">
+            {t('auth.forgotPassword')}
+          </button>
+        ) : null}
       </CardContent>
     </Card>
   );

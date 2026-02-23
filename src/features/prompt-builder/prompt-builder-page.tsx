@@ -1,11 +1,24 @@
 'use client';
 
 import Image from 'next/image';
-import {useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {usePathname, useRouter, useSearchParams} from 'next/navigation';
 import {DndContext, DragEndEvent, DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors} from '@dnd-kit/core';
 import {arrayMove, SortableContext, useSortable, verticalListSortingStrategy} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
-import {CheckCircle2, ChevronDown, GripVertical} from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  Download,
+  Gamepad2,
+  GripVertical,
+  Rocket,
+  Save,
+  Sparkles,
+} from 'lucide-react';
 import JSZip from 'jszip';
 import {useTranslations} from 'next-intl';
 import blocksSeed from '@/data/blocks.json';
@@ -16,16 +29,18 @@ import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {Input} from '@/components/ui/input';
+import {Modal} from '@/components/ui/modal';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Switch} from '@/components/ui/switch';
 import {Textarea} from '@/components/ui/textarea';
+import {StepHelp} from '@/components/ui/step-help';
+import {AuthGateModal} from '@/features/common/auth-gate-modal';
 import {useAuth} from '@/features/common/auth-context';
 import {promptBuilderDraftSchema, promptBuilderStateSchema, PromptBuilderState} from '@/lib/schemas';
 import {storageKeys, readLocal, writeLocal} from '@/lib/storage';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {getSupabaseBrowserClient, supabaseEnabled} from '@/lib/supabase';
 import {toast} from 'sonner';
-import {StepHelp} from '@/components/ui/step-help';
 
 type SeedBlock = {
   id: string;
@@ -36,16 +51,23 @@ type SeedBlock = {
   level: 'basic' | 'intermediate';
   tags: string[];
   image: string;
-  targetColumn: string;
+  targetColumn: SegmentId;
 };
 
 type StructureMacro = {
   id: string;
   sections: string[];
   macro: {
-    columnOrder: string[];
+    columnOrder: SegmentId[];
   };
 };
+
+type BuilderMode = 'pro' | 'quest';
+
+type SegmentId = 'role' | 'goal' | 'context' | 'inputs' | 'constraints' | 'output-format' | 'examples';
+
+const SEGMENT_ORDER_DEFAULT: SegmentId[] = ['role', 'goal', 'context', 'inputs', 'constraints', 'output-format', 'examples'];
+const REQUIRED_SEGMENTS: SegmentId[] = ['role', 'goal', 'output-format'];
 
 const antiHallucinationDefault = [
   'Si falta informacion, haz preguntas antes de asumir.',
@@ -56,22 +78,55 @@ const antiHallucinationDefault = [
 
 function createBaseColumns(): PromptBuilderState['columns'] {
   return [
-    {id: 'role', title: 'Role', items: []},
-    {id: 'goal', title: 'Goal', items: []},
-    {id: 'context', title: 'Context', items: []},
+    {id: 'role', title: 'Rol', items: []},
+    {id: 'goal', title: 'Objetivo', items: []},
+    {id: 'context', title: 'Contexto', items: []},
     {id: 'inputs', title: 'Inputs', items: []},
-    {id: 'constraints', title: 'Constraints', items: [{id: 'anti-hallucination', title: 'Anti-hallucination', content: antiHallucinationDefault, level: 'basic', tags: []}]},
-    {id: 'output-format', title: 'Output Format', items: []},
-    {id: 'examples', title: 'Examples', items: []},
+    {
+      id: 'constraints',
+      title: 'Restricciones',
+      items: [{id: 'anti-hallucination', title: 'Verificación de consistencia', content: antiHallucinationDefault, level: 'basic', tags: []}],
+    },
+    {id: 'output-format', title: 'Formato de salida', items: []},
+    {id: 'examples', title: 'Ejemplos', items: []},
   ];
+}
+
+function normalizeColumns(columns: PromptBuilderState['columns']): PromptBuilderState['columns'] {
+  const base = createBaseColumns();
+  const byId = new Map(columns.map((column) => [column.id, column]));
+  return base.map((column) => byId.get(column.id) ?? column);
+}
+
+function normalizeSegmentOrder(order: string[] | undefined, columns: PromptBuilderState['columns']): SegmentId[] {
+  const allowed = new Set(columns.map((column) => column.id as SegmentId));
+  const source = (order ?? SEGMENT_ORDER_DEFAULT).filter((id) => allowed.has(id as SegmentId)) as SegmentId[];
+  const missing = SEGMENT_ORDER_DEFAULT.filter((id) => allowed.has(id) && !source.includes(id));
+  return [...source, ...missing];
+}
+
+function normalizeState(state: PromptBuilderState): PromptBuilderState {
+  const columns = normalizeColumns(state.columns);
+  const segmentOrder = normalizeSegmentOrder(state.segmentOrder, columns);
+  return {
+    ...state,
+    version: 2,
+    columns,
+    segmentOrder,
+    preferredMode: state.preferredMode ?? 'pro',
+    onboardingCompleted: state.onboardingCompleted ?? false,
+  };
 }
 
 function createInitialState(): PromptBuilderState {
   const parsed = promptBuilderDraftSchema.safeParse(readLocal(storageKeys.promptDrafts, null));
-  if (parsed.success) return parsed.data.state;
+  if (parsed.success) {
+    const fromDraft = promptBuilderStateSchema.safeParse(parsed.data.state);
+    if (fromDraft.success) return normalizeState(fromDraft.data);
+  }
 
   return {
-    version: 1,
+    version: 2,
     title: '',
     role: '',
     structure: 'RTF',
@@ -79,7 +134,48 @@ function createInitialState(): PromptBuilderState {
     antiHallucination: true,
     tags: [],
     columns: createBaseColumns(),
+    segmentOrder: SEGMENT_ORDER_DEFAULT,
+    macro: 'RTF',
+    onboardingCompleted: false,
+    preferredMode: 'quest',
   };
+}
+
+function getColumnById(columns: PromptBuilderState['columns'], id: string) {
+  return columns.find((column) => column.id === id);
+}
+
+function findItem(columns: PromptBuilderState['columns'], itemId: string) {
+  for (const column of columns) {
+    const index = column.items.findIndex((item) => item.id === itemId);
+    if (index !== -1) return {columnId: column.id as SegmentId, index};
+  }
+  return null;
+}
+
+function getColumnLabel(t: ReturnType<typeof useTranslations>, columnId: string, fallback: string) {
+  const key = `promptBuilder.columns.${columnId}`;
+  try {
+    return t(key as never);
+  } catch {
+    return fallback;
+  }
+}
+
+function formatRelativeTime(t: ReturnType<typeof useTranslations>, dateIso: string | null, nowTick: number) {
+  if (!dateIso) return t('promptBuilder.notSavedYet');
+  void nowTick;
+
+  const diffMs = Date.now() - new Date(dateIso).getTime();
+  const minutes = Math.max(0, Math.floor(diffMs / 60000));
+  if (minutes < 1) return t('common.justNow');
+  if (minutes < 60) return t('common.minutesAgo', {count: minutes});
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t('common.hoursAgo', {count: hours});
+
+  const days = Math.floor(hours / 24);
+  return t('common.daysAgo', {count: days});
 }
 
 function PaletteDraggable({id, children}: {id: string; children: React.ReactNode}) {
@@ -157,44 +253,153 @@ function DropColumn({
   );
 }
 
-function getColumnById(columns: PromptBuilderState['columns'], id: string) {
-  return columns.find((column) => column.id === id);
-}
+function SegmentOrderItem({
+  segmentId,
+  label,
+  onFocus,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+  moveUpLabel,
+  moveDownLabel,
+  reorderLabel,
+}: {
+  segmentId: SegmentId;
+  label: string;
+  onFocus: (segmentId: SegmentId) => void;
+  onMoveUp: (segmentId: SegmentId) => void;
+  onMoveDown: (segmentId: SegmentId) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  moveUpLabel: string;
+  moveDownLabel: string;
+  reorderLabel: string;
+}) {
+  const sortableId = `segment-order-${segmentId}`;
+  const {attributes, listeners, setNodeRef, transform, transition} = useSortable({
+    id: sortableId,
+    data: {kind: 'segment-order', segmentId},
+  });
+  const style = {transform: CSS.Transform.toString(transform), transition};
 
-function findItem(columns: PromptBuilderState['columns'], itemId: string) {
-  for (const column of columns) {
-    const index = column.items.findIndex((item) => item.id === itemId);
-    if (index !== -1) return {columnId: column.id, index};
-  }
-  return null;
-}
-
-function getColumnLabel(t: ReturnType<typeof useTranslations>, columnId: string, fallback: string) {
-  const key = `promptBuilder.columns.${columnId}`;
-  try {
-    return t(key as any);
-  } catch {
-    return fallback;
-  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2"
+    >
+      <button
+        onClick={() => onFocus(segmentId)}
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left hover:text-blue-700"
+        type="button"
+      >
+        <span
+          className="cursor-grab rounded p-1 text-slate-500 hover:bg-slate-100"
+          {...attributes}
+          {...listeners}
+          aria-label={reorderLabel}
+          title={reorderLabel}
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
+        <span className="truncate text-sm font-medium text-slate-800">{label}</span>
+      </button>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onMoveUp(segmentId)}
+          disabled={!canMoveUp}
+          title={moveUpLabel}
+          aria-label={moveUpLabel}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onMoveDown(segmentId)}
+          disabled={!canMoveDown}
+          title={moveDownLabel}
+          aria-label={moveDownLabel}
+        >
+          <ArrowDown className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function PromptBuilderPage() {
   const t = useTranslations();
   const {user} = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [state, setState] = useState<PromptBuilderState>(() => createInitialState());
+  const initialDraft = promptBuilderDraftSchema.safeParse(readLocal(storageKeys.promptDrafts, null));
+  const initialState = createInitialState();
+  const storedPrefs = readLocal<{onboardingCompleted: boolean; preferredMode: BuilderMode} | null>(storageKeys.promptBuilderPrefs, null);
+
+  const initialOnboardingCompleted = initialState.onboardingCompleted || storedPrefs?.onboardingCompleted || false;
+  const initialMode: BuilderMode = initialOnboardingCompleted
+    ? (initialState.preferredMode || storedPrefs?.preferredMode || 'pro')
+    : 'quest';
+
+  const [state, setState] = useState<PromptBuilderState>(initialState);
+  const [mode, setMode] = useState<BuilderMode>(initialMode);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(initialOnboardingCompleted);
+  const [questBoard, setQuestBoard] = useState<Record<SegmentId, boolean>>(() => ({
+    role: false,
+    goal: false,
+    context: false,
+    inputs: false,
+    constraints: false,
+    'output-format': false,
+    examples: false,
+  }));
+
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const structureFilter = 'all';
+  const [spotlightSegmentId, setSpotlightSegmentId] = useState<SegmentId | null>(null);
+  const [macroModalOpen, setMacroModalOpen] = useState(false);
+  const [selectedMacroId, setSelectedMacroId] = useState(state.structure);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialDraft.success ? initialDraft.data.updatedAt : null);
+  const [timeTick, setTimeTick] = useState(0);
 
-  const sensors = useSensors(useSensor(PointerSensor));
-  const structures = structuresSeed as Array<StructureMacro>;
-  const selectedStructure = structures.find((item) => item.id === state.structure) ?? structures[0];
-  const visibleColumns = state.columns.filter((col) => {
-    if (col.id === 'constraints' && state.antiHallucination) return true;
-    const activeStructure = structures.find((s) => s.id === state.structure);
-    return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
-  });
+  const publishAutoTriggeredRef = useRef(false);
+  const questCelebratedRef = useRef(false);
+
+  const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 8}}));
+  const structures = structuresSeed as StructureMacro[];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setTimeTick((prev) => prev + 1), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const persistPreferences = async (nextMode: BuilderMode, nextCompleted: boolean) => {
+    const payload = {onboardingCompleted: nextCompleted, preferredMode: nextMode};
+    writeLocal(storageKeys.promptBuilderPrefs, payload);
+    setState((prev) => ({...prev, preferredMode: nextMode, onboardingCompleted: nextCompleted}));
+
+    if (user) {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return;
+      const {error} = await supabase.auth.updateUser({data: {promptBuilderPrefs: payload}});
+      if (error) console.warn(error.message);
+    }
+  };
+
+  const focusSegment = (segmentId: SegmentId) => {
+    setSpotlightSegmentId(segmentId);
+    document.getElementById(`step-${segmentId}`)?.scrollIntoView({behavior: 'smooth', block: 'center'});
+    window.setTimeout(() => {
+      setSpotlightSegmentId((current) => (current === segmentId ? null : current));
+    }, 1600);
+  };
 
   const ensureAntiHallucination = (columns: PromptBuilderState['columns'], enabled: boolean) => {
     const next = [...columns];
@@ -205,7 +410,7 @@ export function PromptBuilderPage() {
     if (enabled && !hasBlock) {
       next[cIndex] = {
         ...next[cIndex],
-        items: [{id: 'anti-hallucination', title: 'Anti-hallucination', content: antiHallucinationDefault, level: 'basic', tags: []}, ...next[cIndex].items],
+        items: [{id: 'anti-hallucination', title: 'Verificación de consistencia', content: antiHallucinationDefault, level: 'basic', tags: []}, ...next[cIndex].items],
       };
     }
     if (!enabled && hasBlock) {
@@ -214,51 +419,81 @@ export function PromptBuilderPage() {
     return next;
   };
 
-  const applyStructureMacro = (nextStructureId: string, prefill = false) => {
-    const structure = structures.find((item) => item.id === nextStructureId);
+  const applyMacro = (macroId: string) => {
+    const structure = structures.find((item) => item.id === macroId);
     if (!structure) return;
 
     setState((prev) => {
-      const ordered: PromptBuilderState['columns'] = [];
-      structure.macro.columnOrder.forEach((columnId) => {
-        const found = prev.columns.find((column) => column.id === columnId);
-        if (found) ordered.push(found);
-      });
-
-      const leftovers = prev.columns.filter((column) => !structure.macro.columnOrder.includes(column.id));
-      let columns = ensureAntiHallucination([...ordered, ...leftovers], prev.antiHallucination);
-
-      if (prefill) {
-        const template = t((structuresSeed as Array<{id: string; templateKey: string}>).find((item) => item.id === nextStructureId)?.templateKey ?? 'structures.rtf.template');
-        const prefillLines = template.split('\n').filter(Boolean);
-
-        columns = columns.map((column) => {
-          if (column.items.length > 0) return column;
-          if (column.id === 'role') {
-              const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('role'));
-              return line
-              ? {...column, items: [{id: `macro-${Date.now()}-role`, title: t('promptBuilder.macro'), content: line, level: 'basic', tags: []}]}
-              : column;
-          }
-          if (column.id === 'goal') {
-              const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('task') || entry.toLowerCase().startsWith('objective'));
-              return line
-              ? {...column, items: [{id: `macro-${Date.now()}-goal`, title: t('promptBuilder.macro'), content: line, level: 'basic', tags: []}]}
-              : column;
-          }
-          if (column.id === 'output-format') {
-              const line = prefillLines.find((entry) => entry.toLowerCase().startsWith('format') || entry.toLowerCase().startsWith('output') || entry.toLowerCase().startsWith('response'));
-              return line
-              ? {...column, items: [{id: `macro-${Date.now()}-output`, title: t('promptBuilder.macro'), content: line, level: 'basic', tags: []}]}
-              : column;
-          }
-          return column;
-        });
-      }
-
-      return {...prev, structure: nextStructureId, columns};
+      const columns = normalizeColumns(ensureAntiHallucination(prev.columns, prev.antiHallucination));
+      return {
+        ...prev,
+        structure: macroId,
+        macro: macroId,
+        segmentOrder: normalizeSegmentOrder(structure.macro.columnOrder, columns),
+        columns,
+      };
     });
+
+    setMacroModalOpen(false);
+    toast.success(t('promptBuilder.macroAppliedToast', {macro: macroId}));
   };
+
+  const segmentOrder = useMemo(() => normalizeSegmentOrder(state.segmentOrder, state.columns), [state.segmentOrder, state.columns]);
+
+  const visibleColumns = useMemo(() => {
+    const ordered = segmentOrder
+      .map((segmentId) => state.columns.find((column) => column.id === segmentId))
+      .filter(Boolean) as PromptBuilderState['columns'];
+
+    return ordered.filter((column) => {
+      if (column.id === 'constraints') return state.antiHallucination || column.items.length > 0;
+      return true;
+    });
+  }, [segmentOrder, state.columns, state.antiHallucination]);
+
+  const getSegmentContents = useCallback((segmentId: SegmentId) => {
+    const column = getColumnById(state.columns, segmentId);
+    const contents = column?.items.map((item) => item.content.trim()).filter(Boolean) ?? [];
+
+    if (segmentId === 'role' && state.role?.trim()) {
+      const roleValue = state.role.trim();
+      if (!contents.some((line) => line.toLowerCase().includes(roleValue.toLowerCase()))) {
+        contents.unshift(roleValue);
+      }
+    }
+
+    return contents;
+  }, [state.columns, state.role]);
+
+  const getSegmentPlaceholder = (segmentId: SegmentId) => {
+    try {
+      return t(`promptBuilder.placeholders.${segmentId}`);
+    } catch {
+      return '';
+    }
+  };
+
+  const roleReady = getSegmentContents('role').length > 0;
+  const goalReady = getSegmentContents('goal').length > 0;
+  const formatReady = getSegmentContents('output-format').length > 0;
+  const hasPreviewContent = segmentOrder.some((segmentId) => getSegmentContents(segmentId).length > 0);
+  const canPublishByMinimum = roleReady && goalReady && formatReady;
+  const missingSegments = [
+    roleReady ? null : 'role',
+    goalReady ? null : 'goal',
+    formatReady ? null : 'output-format',
+  ].filter(Boolean) as SegmentId[];
+  const missingLabels = missingSegments.map((segmentId) => getColumnLabel(t, segmentId, segmentId));
+  const missingList = missingLabels.join(', ');
+  const firstMissingSegment = missingSegments[0] ?? null;
+
+  const publishDisabledReason = !roleReady
+    ? t('promptBuilder.publishMissingRole')
+    : !goalReady
+      ? t('promptBuilder.publishMissingGoal')
+      : !formatReady
+        ? t('promptBuilder.publishMissingFormat')
+        : '';
 
   const filteredBlocks = useMemo(() => {
     const selectedNiche = state.niche ?? 'all';
@@ -268,59 +503,30 @@ export function PromptBuilderPage() {
         t(block.titleKey).toLowerCase().includes(search.toLowerCase()) ||
         t(block.contentKey).toLowerCase().includes(search.toLowerCase());
       const byNiche = selectedNiche === 'all' || block.niche.startsWith(selectedNiche);
-      const byStructure = structureFilter === 'all' || block.structure === structureFilter;
-      return bySearch && byNiche && byStructure;
+      return bySearch && byNiche;
     });
-  }, [search, state.niche, structureFilter, t]);
+  }, [search, state.niche, t]);
 
   const composedPrompt = useMemo(() => {
-    const sectionMap: Record<string, string[]> = {
-      Role: ['role'],
-      Task: ['goal'],
-      Goal: ['goal'],
-      Format: ['output-format'],
-      Action: ['constraints'],
-      Output: ['output-format'],
-      Before: ['context'],
-      After: ['goal'],
-      Bridge: ['constraints'],
-      Context: ['context'],
-      Result: ['goal'],
-      Examples: ['examples'],
-      Objective: ['goal'],
-      Style: ['constraints'],
-      Tone: ['constraints'],
-      Audience: ['inputs'],
-      Response: ['output-format'],
-      Capacity: ['role'],
-      Insight: ['context'],
-      Statement: ['goal'],
-      Personality: ['constraints'],
-      Experiment: ['examples'],
-      Situation: ['context'],
-    };
-
-    const sections = selectedStructure?.sections ?? ['Role', 'Goal', 'Context', 'Inputs', 'Constraints', 'Output Format', 'Examples'];
     const lines: string[] = [];
 
-    if (state.role?.trim()) lines.push(`# Role\n${state.role.trim()}`);
-
-    for (const section of sections) {
-      const columnIds = sectionMap[section] ?? [section.toLowerCase()];
-      const contents = columnIds
-        .flatMap((columnId) => getColumnById(state.columns, columnId)?.items ?? [])
-        .map((item) => item.content.trim())
-        .filter(Boolean);
-
-      if (contents.length > 0) {
-        lines.push(`## ${section}\n${contents.join('\n')}`);
-      }
-    }
+    segmentOrder.forEach((segmentId) => {
+      const contents = getSegmentContents(segmentId);
+      if (!contents.length) return;
+      const label = getColumnLabel(t, segmentId, segmentId);
+      lines.push(`## ${label}\n${contents.join('\n')}`);
+    });
 
     return lines.join('\n\n');
-  }, [state.columns, state.role, selectedStructure]);
-  const hasPreviewContent = composedPrompt.trim().length > 0;
-  const hasMinimumFields = state.title.trim().length > 0 && hasPreviewContent;
+  }, [segmentOrder, getSegmentContents, t]);
+
+  const macroPreviewOrder = useMemo(() => {
+    const structure = structures.find((item) => item.id === selectedMacroId);
+    if (!structure) return segmentOrder;
+    return normalizeSegmentOrder(structure.macro.columnOrder, state.columns);
+  }, [selectedMacroId, structures, segmentOrder, state.columns]);
+
+  const lastSavedLabel = formatRelativeTime(t, lastSavedAt, timeTick);
 
   const onDragStart = (event: DragStartEvent) => {
     setActiveDragId(String(event.active.id));
@@ -333,6 +539,25 @@ export function PromptBuilderPage() {
 
     const activeId = String(active.id);
     const overId = String(over.id);
+
+    if (active.data.current?.kind === 'segment-order') {
+      const activeSegmentId = String(active.data.current.segmentId) as SegmentId;
+      const overSegmentId =
+        over.data.current?.kind === 'segment-order'
+          ? (String(over.data.current.segmentId) as SegmentId)
+          : (overId.replace('segment-order-', '') as SegmentId);
+
+      if (!activeSegmentId || !overSegmentId || activeSegmentId === overSegmentId) return;
+
+      setState((prev) => {
+        const order = normalizeSegmentOrder(prev.segmentOrder, prev.columns);
+        const oldIndex = order.indexOf(activeSegmentId);
+        const newIndex = order.indexOf(overSegmentId);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return {...prev, segmentOrder: arrayMove(order, oldIndex, newIndex)};
+      });
+      return;
+    }
 
     if (active.data.current?.kind === 'palette') {
       const targetColumn = getColumnById(state.columns, overId) ?? getColumnById(state.columns, findItem(state.columns, overId)?.columnId ?? '');
@@ -402,28 +627,6 @@ export function PromptBuilderPage() {
         if (!source || !target) return prev;
         const moving = source.items[from.index];
 
-        // Auto-scroll to next step after drop
-        setTimeout(() => {
-          const currentStageIndex = prev.columns
-            .filter((col) => {
-               if (col.id === 'constraints' && prev.antiHallucination) return true;
-               const activeStructure = structures.find((s) => s.id === prev.structure);
-               return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
-            })
-            .findIndex((c) => c.id === target.id);
-            
-          const nextStage = prev.columns
-            .filter((col) => {
-               if (col.id === 'constraints' && prev.antiHallucination) return true;
-               const activeStructure = structures.find((s) => s.id === prev.structure);
-               return activeStructure?.macro.columnOrder.includes(col.id) || col.items.length > 0;
-            })[currentStageIndex + 1];
-
-          if (nextStage) {
-            document.getElementById(`step-${nextStage.id}`)?.scrollIntoView({behavior: 'smooth', block: 'center'});
-          }
-        }, 100);
-
         return {
           ...prev,
           columns: prev.columns.map((column) => {
@@ -437,31 +640,82 @@ export function PromptBuilderPage() {
   };
 
   const saveDraft = () => {
-    const parsed = promptBuilderStateSchema.safeParse(state);
+    const draftState = {
+      ...state,
+      segmentOrder,
+      preferredMode: mode,
+      onboardingCompleted,
+    };
+
+    const parsed = promptBuilderStateSchema.safeParse(draftState);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
       return;
     }
 
+    const now = new Date().toISOString();
     writeLocal(storageKeys.promptDrafts, {
       state: parsed.data,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     });
-    toast.success(t('promptBuilder.savedLocal'));
+    setLastSavedAt(now);
+    toast.success(t('actions.saved'));
   };
 
-  const handlePublish = async () => {
+  const exportZip = async () => {
+    if (!hasPreviewContent) {
+      toast.error(t('promptBuilder.exportEmpty'));
+      return;
+    }
+
+    const parsed = promptBuilderStateSchema.safeParse({...state, segmentOrder, preferredMode: mode, onboardingCompleted});
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
+      return;
+    }
+
+    const zip = new JSZip();
+    zip.file('PROMPT.md', composedPrompt);
+    zip.file('PROMPT.txt', composedPrompt);
+    zip.file('segments.json', JSON.stringify(parsed.data.columns, null, 2));
+    zip.file(
+      'meta.json',
+      JSON.stringify(
+        {
+          title: parsed.data.title || t('promptBuilder.untitled'),
+          macro: parsed.data.macro || parsed.data.structure,
+          structure: parsed.data.structure,
+          segmentOrder,
+          tags: parsed.data.tags,
+          exportedAt: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
+    const blob = await zip.generateAsync({type: 'blob'});
+    downloadBlob(`${slugify(state.title || 'prompt')}.zip`, blob, 'application/zip');
+    toast.success(t('actions.exported'));
+  };
+
+  const handlePublish = useCallback(async () => {
     if (!supabaseEnabled) {
       toast.error(t('promptBuilder.supabaseRequired'));
       return;
     }
 
-    if (!user) {
-      toast.error(t('promptBuilder.loginRequired'));
+    if (!canPublishByMinimum) {
+      toast.error(`${t('promptBuilder.publishBlockedTitle')}. ${t('promptBuilder.publishBlockedText')}`);
+      if (firstMissingSegment) focusSegment(firstMissingSegment);
       return;
     }
 
-    const parsed = promptBuilderStateSchema.safeParse(state);
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+
+    const parsed = promptBuilderStateSchema.safeParse({...state, segmentOrder, preferredMode: mode, onboardingCompleted});
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
       return;
@@ -470,7 +724,7 @@ export function PromptBuilderPage() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
-    const slug = `${slugify(state.title || 'prompt')}-${Math.random().toString(36).slice(2, 7)}`;
+    const slug = `${slugify(state.title || t('promptBuilder.untitled'))}-${Math.random().toString(36).slice(2, 7)}`;
     const {error} = await supabase.from('prompts').insert({
       owner_id: user.id,
       title: state.title || t('promptBuilder.untitled'),
@@ -480,7 +734,7 @@ export function PromptBuilderPage() {
       status: 'active',
       hidden_reason: null,
       structure: state.structure,
-      tags: state.niche && state.niche !== 'all' ? [state.niche] : [],
+      tags: state.tags.length > 0 ? state.tags : state.niche && state.niche !== 'all' ? [state.niche] : [],
       builder_state: parsed.data,
       output_prompt: composedPrompt,
     });
@@ -491,161 +745,422 @@ export function PromptBuilderPage() {
     }
 
     toast.success(t('promptBuilder.published'));
+  }, [canPublishByMinimum, composedPrompt, firstMissingSegment, mode, onboardingCompleted, segmentOrder, state, t, user]);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action !== 'publish') return;
+    if (!user || !canPublishByMinimum || publishAutoTriggeredRef.current) return;
+
+    publishAutoTriggeredRef.current = true;
+    void handlePublish().finally(() => {
+      router.replace(pathname);
+    });
+  }, [searchParams, user, canPublishByMinimum, pathname, router, handlePublish]);
+
+  const switchMode = async (questEnabled: boolean) => {
+    const nextMode: BuilderMode = questEnabled ? 'quest' : 'pro';
+    setMode(nextMode);
+    await persistPreferences(nextMode, onboardingCompleted);
   };
 
-  const exportZip = async () => {
-    const parsed = promptBuilderStateSchema.safeParse(state);
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || t('promptBuilder.invalid'));
+  const moveSegmentUp = (segmentId: SegmentId) => {
+    setState((prev) => {
+      const order = normalizeSegmentOrder(prev.segmentOrder, prev.columns);
+      const index = order.indexOf(segmentId);
+      if (index <= 0) return prev;
+      return {...prev, segmentOrder: arrayMove(order, index, index - 1)};
+    });
+  };
+
+  const moveSegmentDown = (segmentId: SegmentId) => {
+    setState((prev) => {
+      const order = normalizeSegmentOrder(prev.segmentOrder, prev.columns);
+      const index = order.indexOf(segmentId);
+      if (index < 0 || index === order.length - 1) return prev;
+      return {...prev, segmentOrder: arrayMove(order, index, index + 1)};
+    });
+  };
+
+  const onQuestDrop = (slotId: SegmentId, event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const draggedId = event.dataTransfer.getData('application/x-segment') as SegmentId;
+    if (!draggedId) return;
+
+    if (draggedId !== slotId) {
+      toast.error(t('promptBuilder.questWrongSlot'));
       return;
     }
 
-    const zip = new JSZip();
-    zip.file('prompt.md', composedPrompt);
-    zip.file('prompt.json', JSON.stringify({...parsed.data, output: composedPrompt}, null, 2));
-    const blob = await zip.generateAsync({type: 'blob'});
-    downloadBlob(`${slugify(state.title || 'prompt')}.zip`, blob, 'application/zip');
+    setQuestBoard((prev) => ({...prev, [slotId]: true}));
+    focusSegment(slotId);
+    toast.success(t('promptBuilder.questPlaced', {segment: getColumnLabel(t, slotId, slotId)}));
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Sticky Toolbar */}
-      <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-700">{t('promptBuilder.structure')}</span>
-              <Select value={state.structure} onValueChange={(value) => applyStructureMacro(value)}>
-                <SelectTrigger className="w-[140px] md:w-[180px]">
-                  <SelectValue placeholder={t('promptBuilder.structure')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {structures.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
-            <div className="flex items-center gap-2">
-              <Select value={state.niche ?? 'all'} onValueChange={(value) => setState((prev) => ({...prev, niche: value}))}>
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue />
-                </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('filters.allNiches')}</SelectItem>
-                    <SelectItem value="dev">{t('filters.dev')}</SelectItem>
-                    <SelectItem value="images">{t('filters.images')}</SelectItem>
-                    <SelectItem value="videos">{t('filters.videos')}</SelectItem>
-                  </SelectContent>
-              </Select>
-            </div>
-          </div>
+  const questMinimumReady = REQUIRED_SEGMENTS.every((segmentId) => questBoard[segmentId]);
 
-          <div className="flex flex-1 items-center justify-end gap-3">
-            <Input
-              placeholder={t('common.search')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-[200px]"
-            />
-            <Button variant="outline" onClick={() => applyStructureMacro(state.structure, true)}>
+  useEffect(() => {
+    if (!questMinimumReady || onboardingCompleted || questCelebratedRef.current) return;
+    questCelebratedRef.current = true;
+    toast.success(t('promptBuilder.questReadyToast'));
+  }, [questMinimumReady, onboardingCompleted, t]);
+
+  const continueToPro = async () => {
+    setOnboardingCompleted(true);
+    setMode('pro');
+    await persistPreferences('pro', true);
+    toast.success(t('promptBuilder.questCompletedToast'));
+  };
+
+  const returnTo = pathname;
+
+  return (
+    <>
+      <AuthGateModal open={authModalOpen} onOpenChange={setAuthModalOpen} returnTo={returnTo} action="publish" />
+
+      <Modal
+        open={macroModalOpen}
+        onOpenChange={setMacroModalOpen}
+        title={t('promptBuilder.macroModalTitle')}
+        description={t('promptBuilder.macroModalDescription')}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setMacroModalOpen(false)}>
+              {t('actions.cancel')}
+            </Button>
+            <Button onClick={() => applyMacro(selectedMacroId)}>
               {t('promptBuilder.applyMacro')}
             </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-slate-700">{t('promptBuilder.structure')}</label>
+          <Select value={selectedMacroId} onValueChange={setSelectedMacroId}>
+            <SelectTrigger>
+              <SelectValue placeholder={t('promptBuilder.structure')} />
+            </SelectTrigger>
+            <SelectContent>
+              {structures.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.beforeOrder')}</p>
+            <div className="space-y-1">
+              {segmentOrder.map((segmentId, index) => (
+                <p key={segmentId} className="text-sm text-slate-700">
+                  {index + 1}. {getColumnLabel(t, segmentId, segmentId)}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">{t('promptBuilder.afterOrder')}</p>
+            <div className="space-y-1">
+              {macroPreviewOrder.map((segmentId, index) => (
+                <p key={segmentId} className="text-sm text-slate-700">
+                  {index + 1}. {getColumnLabel(t, segmentId, segmentId)}
+                </p>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </Modal>
 
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-          {/* Left Column: Vertical Steps */}
-          <div className="space-y-6 pb-20">
-            {/* Project Info Card */}
-            <Card glow className="border-blue-100 bg-blue-50/50">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base">{t('promptBuilder.promptDetails')}</CardTitle>
-                  <StepHelp tooltip={t('help.prompt.details')} />
-                </div>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <Input
-                  placeholder={t('promptBuilder.promptTitle')}
-                  value={state.title}
-                  onChange={(e) => setState((prev) => ({...prev, title: e.target.value}))}
-                  className="bg-white"
-                />
-                <Select value={state.role || ''} onValueChange={(value) => setState((prev) => ({...prev, role: value}))}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder={t('promptBuilder.role')} />
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('promptBuilder.title')}</CardTitle>
+            <CardDescription>{t('promptBuilder.subtitle')}</CardDescription>
+          </CardHeader>
+        </Card>
+
+        <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-700">{t('promptBuilder.structure')}</span>
+                <StepHelp tooltip={t('help.prompt.macro')} />
+                <Select value={state.structure} onValueChange={(value) => setState((prev) => ({...prev, structure: value, macro: value}))}>
+                  <SelectTrigger className="w-[120px] md:w-[160px]">
+                    <SelectValue placeholder={t('promptBuilder.structure')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {(rolesSeed as Array<{id: string; labelKey: string}>).map((item) => (
-                      <SelectItem key={item.id} value={t(item.labelKey)}>
-                        {t(item.labelKey)}
+                    {structures.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.id}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="flex items-center gap-2 md:col-span-2">
-                  <span className="text-sm font-medium text-slate-700">{t('promptBuilder.antiHallucination')}</span>
-                  <Switch
-                    checked={state.antiHallucination}
-                    aria-label={t('promptBuilder.antiHallucination')}
-                    onCheckedChange={(value) =>
-                      setState((prev) => ({
-                        ...prev,
-                        antiHallucination: value,
-                        columns: ensureAntiHallucination(prev.columns, value),
-                      }))
-                    }
+              </div>
+
+              <Select value={state.niche ?? 'all'} onValueChange={(value) => setState((prev) => ({...prev, niche: value}))}>
+                <SelectTrigger className="w-[145px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('filters.allNiches')}</SelectItem>
+                  <SelectItem value="dev">{t('filters.dev')}</SelectItem>
+                  <SelectItem value="images">{t('filters.images')}</SelectItem>
+                  <SelectItem value="videos">{t('filters.videos')}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Input
+                placeholder={t('common.search')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-[180px] bg-white"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => setMacroModalOpen(true)} title={t('promptBuilder.applyMacro')}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                {t('promptBuilder.applyMacro')}
+              </Button>
+
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <Gamepad2 className="h-4 w-4 text-slate-600" />
+                <span className="text-xs font-medium text-slate-700">{mode === 'quest' ? t('promptBuilder.gameMode') : t('promptBuilder.proMode')}</span>
+                <StepHelp tooltip={t('promptBuilder.gameModeTooltip')} />
+                <Switch checked={mode === 'quest'} onCheckedChange={switchMode} aria-label={t('promptBuilder.gameMode')} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+          <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+            <div className="space-y-6 pb-20">
+              {mode === 'quest' && (
+                <Card glow className="border-emerald-200 bg-emerald-50/50">
+                  <CardHeader>
+                    <CardTitle className="text-base">{t('promptBuilder.questTitle')}</CardTitle>
+                    <CardDescription>{t('promptBuilder.questSubtitle')}</CardDescription>
+                    <p className="text-xs font-medium text-emerald-700">
+                      {t('promptBuilder.questProgress', {
+                        done: Object.values(questBoard).filter(Boolean).length,
+                        total: segmentOrder.length,
+                      })}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questCards')}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {segmentOrder.map((segmentId) => (
+                          <button
+                            key={`quest-card-${segmentId}`}
+                            draggable
+                            onDragStart={(event) => event.dataTransfer.setData('application/x-segment', segmentId)}
+                            className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 hover:border-emerald-300"
+                            onClick={() => focusSegment(segmentId)}
+                          >
+                            {getColumnLabel(t, segmentId, segmentId)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questBoard')}</p>
+                      <div className="space-y-2">
+                        {segmentOrder.map((segmentId) => {
+                          const placed = questBoard[segmentId];
+                          return (
+                            <div
+                              key={`quest-slot-${segmentId}`}
+                              className={`rounded-xl border border-dashed p-3 text-sm transition-colors ${
+                                placed ? 'border-emerald-400 bg-emerald-100/70 text-emerald-900' : 'border-slate-300 bg-white text-slate-600'
+                              }`}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={(event) => onQuestDrop(segmentId, event)}
+                              onClick={() => focusSegment(segmentId)}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  focusSegment(segmentId);
+                                }
+                              }}
+                            >
+                              <span className="font-medium">{getColumnLabel(t, segmentId, segmentId)}:</span>{' '}
+                              {placed ? t('promptBuilder.questPlacedLabel') : t('promptBuilder.questDropHere')}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      {questMinimumReady ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-100 p-3">
+                          <p className="text-sm font-medium text-emerald-900">{t('promptBuilder.questSuccess')}</p>
+                          <Button onClick={continueToPro}>{t('promptBuilder.continuePro')}</Button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-600">{t('promptBuilder.questHint')}</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card glow className="border-blue-100 bg-blue-50/50">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">{t('promptBuilder.promptDetails')}</CardTitle>
+                    <StepHelp tooltip={t('help.prompt.details')} />
+                  </div>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                  <Input
+                    placeholder={t('promptBuilder.promptTitle')}
+                    value={state.title}
+                    onChange={(e) => setState((prev) => ({...prev, title: e.target.value}))}
+                    className="bg-white"
                   />
-                  <Badge variant={state.antiHallucination ? 'default' : 'secondary'}>
-                    {state.antiHallucination ? t('common.on') : t('common.off')}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+                  <Select value={state.role || ''} onValueChange={(value) => setState((prev) => ({...prev, role: value}))}>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder={t('promptBuilder.role')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(rolesSeed as Array<{id: string; labelKey: string}>).map((item) => (
+                        <SelectItem key={item.id} value={t(item.labelKey)}>
+                          {t(item.labelKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-2 md:col-span-2">
+                    <span className="text-sm font-medium text-slate-700">{t('promptBuilder.antiHallucination')}</span>
+                    <Switch
+                      checked={state.antiHallucination}
+                      aria-label={t('promptBuilder.antiHallucination')}
+                      onCheckedChange={(value) =>
+                        setState((prev) => ({
+                          ...prev,
+                          antiHallucination: value,
+                          columns: ensureAntiHallucination(prev.columns, value),
+                        }))
+                      }
+                    />
+                    <Badge variant={state.antiHallucination ? 'default' : 'secondary'}>{state.antiHallucination ? t('common.on') : t('common.off')}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{t('promptBuilder.stepsTitle')}</CardTitle>
-                <CardDescription>{t('promptBuilder.stepsDescription')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {visibleColumns.map((column, index) => {
-                    const done = column.items.length > 0;
-                    return (
-                      <a
-                        key={column.id}
-                        href={`#step-${column.id}`}
-                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-colors hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--prompteero-blue)]"
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
-                            {index + 1}
-                          </span>
-                          <span className="font-medium text-slate-800">{getColumnLabel(t, column.id, column.title)}</span>
-                        </span>
-                        {done ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <span className="text-xs text-slate-400">{t('promptBuilder.pending')}</span>}
-                      </a>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{t('promptBuilder.finalOrderTitle')}</CardTitle>
+                  <CardDescription>{t('promptBuilder.finalOrderDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SortableContext items={segmentOrder.map((segmentId) => `segment-order-${segmentId}`)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {segmentOrder.map((segmentId, index) => (
+                        <SegmentOrderItem
+                          key={segmentId}
+                          segmentId={segmentId}
+                          label={getColumnLabel(t, segmentId, segmentId)}
+                          onFocus={focusSegment}
+                          onMoveUp={moveSegmentUp}
+                          onMoveDown={moveSegmentDown}
+                          canMoveUp={index > 0}
+                          canMoveDown={index < segmentOrder.length - 1}
+                          moveUpLabel={t('promptBuilder.moveUp')}
+                          moveDownLabel={t('promptBuilder.moveDown')}
+                          reorderLabel={t('common.reorder')}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </CardContent>
+              </Card>
 
-            {/* Dynamic Stages based on Structure */}
-            {visibleColumns.map((column, index) => {
-                const stepBlocks = filteredBlocks.filter(
-                  (b) => b.targetColumn === column.id || (column.id === 'constraints' && b.targetColumn === 'constraints')
-                );
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{t('promptBuilder.stepsTitle')}</CardTitle>
+                  <CardDescription>{t('promptBuilder.stepsDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {visibleColumns.map((column, index) => {
+                      const segmentId = column.id as SegmentId;
+                      const done = getSegmentContents(segmentId).length > 0;
+                      return (
+                        <a
+                          key={column.id}
+                          href={`#step-${column.id}`}
+                          className="rounded-xl border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--prompteero-blue)]"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+                                {index + 1}
+                              </span>
+                              {getColumnLabel(t, column.id, column.title)}
+                            </span>
+                            {done ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                {t('promptBuilder.complete')}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">{t('promptBuilder.pending')}</span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {done
+                              ? t('promptBuilder.stepCompleteHint')
+                              : t('promptBuilder.stepMissingHint', {segment: getColumnLabel(t, column.id, column.title)})}
+                          </p>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={canPublishByMinimum ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-200 bg-amber-50/40'}>
+                <CardContent className="space-y-2 pt-4">
+                  <p className="text-sm font-medium text-slate-800">{t('promptBuilder.minimumsToPublish')}</p>
+                  {canPublishByMinimum ? (
+                    <p className="text-sm text-emerald-700">{t('promptBuilder.readyToPublish')}</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-amber-700">{t('promptBuilder.missingList', {items: missingList})}</p>
+                      {firstMissingSegment ? (
+                        <Button variant="outline" size="sm" onClick={() => focusSegment(firstMissingSegment)}>
+                          {t('actions.goToMissing')}
+                        </Button>
+                      ) : null}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {visibleColumns.map((column, index) => {
+                const stepBlocks = filteredBlocks.filter((block) => block.targetColumn === column.id);
+                const isSpotlight = spotlightSegmentId === column.id;
 
                 return (
-                  <div key={column.id} id={`step-${column.id}`} className="scroll-mt-24 space-y-3">
+                  <div
+                    key={column.id}
+                    id={`step-${column.id}`}
+                    className={`scroll-mt-24 space-y-3 rounded-2xl p-1 transition-all ${isSpotlight ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
+                  >
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
                         {index + 1}
@@ -656,7 +1171,7 @@ export function PromptBuilderPage() {
 
                     <Card glow className="overflow-hidden">
                       <div className="border-b border-slate-100 bg-slate-50/50 px-4 py-3">
-                        <p className="mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                           {t('promptBuilder.palette')} ({stepBlocks.length})
                         </p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -671,13 +1186,7 @@ export function PromptBuilderPage() {
                                   }`}
                                 >
                                   <div className="relative mb-2 h-20 w-full overflow-hidden rounded-lg">
-                                    <Image
-                                      src={block.image}
-                                      alt={t(block.titleKey)}
-                                      fill
-                                      className="object-cover"
-                                      sizes="160px"
-                                    />
+                                    <Image src={block.image} alt={t(block.titleKey)} fill className="object-cover" sizes="160px" />
                                   </div>
                                   <p className="line-clamp-1 text-xs font-semibold text-slate-800">{t(block.titleKey)}</p>
                                   <p className="line-clamp-1 text-[10px] text-slate-500">{t(block.contentKey)}</p>
@@ -703,9 +1212,11 @@ export function PromptBuilderPage() {
                             }))
                           }
                         />
-                        {column.id === 'inputs' && column.items.length === 0 && (
+                        {column.items.length === 0 && (
                           <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">
-                            <p>{t('promptBuilder.inputsEmpty')}</p>
+                            <p className="font-medium text-slate-700">
+                              {t('promptBuilder.segmentHintPrefix')}: {getSegmentPlaceholder(column.id as SegmentId)}
+                            </p>
                           </div>
                         )}
                       </CardContent>
@@ -713,92 +1224,98 @@ export function PromptBuilderPage() {
                   </div>
                 );
               })}
-          </div>
+            </div>
 
-          {/* Right Column: Sticky Preview */}
-          <div className="hidden lg:block">
-            <div className="sticky top-[140px] space-y-4">
-              <Card glow className="border-blue-100 bg-white shadow-lg">
-                <CardHeader className="bg-slate-50/50 pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">{t('promptBuilder.preview')}</CardTitle>
-                    <Badge variant="outline" className="font-mono text-[10px]">
-                      {state.structure}
-                    </Badge>
+            <div className="hidden lg:block">
+              <div className="sticky top-[140px] space-y-4">
+                <Card glow className="border-blue-100 bg-white shadow-lg">
+                  <CardHeader className="bg-slate-50/50 pb-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-sm">{t('promptBuilder.preview')}</CardTitle>
+                      <Badge variant="outline" className="font-mono text-[10px]">
+                        {state.structure}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-500">{t('promptBuilder.lastSaved', {value: lastSavedLabel})}</p>
+                  </CardHeader>
+
+                  <CardContent className="p-0">
+                    <Textarea
+                      value={composedPrompt}
+                      readOnly
+                      className="min-h-[500px] resize-none rounded-none border-0 px-4 py-4 font-mono text-sm focus-visible:ring-0"
+                    />
+                  </CardContent>
+
+                  <div className="space-y-2 border-t border-slate-100 p-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Button
+                        disabled={!hasPreviewContent}
+                        size="sm"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(composedPrompt);
+                          toast.success(t('actions.copied'));
+                        }}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        {t('actions.copy')}
+                      </Button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" disabled={!hasPreviewContent} title={t('promptBuilder.exportTooltip')}>
+                            <Download className="mr-2 h-4 w-4" />
+                            {t('actions.export')}
+                            <ChevronDown className="ml-1 h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              downloadBlob(`${slugify(state.title || 'prompt')}.txt`, composedPrompt, 'text/plain');
+                              toast.success(t('actions.exported'));
+                            }}
+                          >
+                            {t('actions.exportTxt')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown');
+                              toast.success(t('actions.exported'));
+                            }}
+                          >
+                            {t('actions.exportMd')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              void exportZip();
+                            }}
+                          >
+                            {t('actions.exportBundleZip')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Button onClick={handlePublish} className="w-full" disabled={!supabaseEnabled || !canPublishByMinimum} title={publishDisabledReason || undefined}>
+                        <Rocket className="mr-2 h-4 w-4" />
+                        {t('actions.publish')}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={saveDraft} className="w-full" disabled={!hasPreviewContent}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {t('actions.saveDraft')}
+                      </Button>
+                    </div>
+
+                    {!canPublishByMinimum && <p className="text-xs text-amber-700">{publishDisabledReason}</p>}
                   </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Textarea
-                    value={composedPrompt}
-                    readOnly
-                    className="min-h-[500px] resize-none rounded-none border-0 px-4 py-4 focus-visible:ring-0"
-                  />
-                </CardContent>
-                <div className="border-t border-slate-100 p-3">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Button
-                      disabled={!hasPreviewContent}
-                      size="sm"
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(composedPrompt);
-                        toast.success(t('actions.copied'));
-                      }}
-                    >
-                      {t('actions.copy')}
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={!hasPreviewContent}>
-                          {t('actions.export')}
-                          <ChevronDown className="ml-1 h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown');
-                            toast.success(t('actions.exported'));
-                          }}
-                        >
-                          {t('actions.exportMd')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            downloadBlob(
-                              `${slugify(state.title || 'prompt')}.json`,
-                              JSON.stringify({...state, output: composedPrompt}, null, 2),
-                              'application/json'
-                            );
-                            toast.success(t('actions.exported'));
-                          }}
-                        >
-                          {t('actions.exportJson')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            void exportZip();
-                            toast.success(t('actions.exported'));
-                          }}
-                        >
-                          {t('actions.exportZip')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <Button onClick={handlePublish} className="w-full" disabled={!hasMinimumFields}>
-                      {t('actions.publish')}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={saveDraft} className="w-full" disabled={!hasMinimumFields}>
-                      {t('actions.saveDraft')}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             </div>
           </div>
-        </div>
-      </DndContext>
-    </div>
+        </DndContext>
+      </div>
+    </>
   );
 }

@@ -7,9 +7,9 @@ import {Badge} from '@/components/ui/badge';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 
 const cards = [
-  {icon: TextCursorInput, key: 'landing.prompt', href: '/builders'},
-  {icon: Puzzle, key: 'landing.skill', href: '/builders'},
-  {icon: Bot, key: 'landing.agent', href: '/builders'},
+  {icon: TextCursorInput, key: 'landing.prompt', href: '/prompt-builder'},
+  {icon: Puzzle, key: 'landing.skill', href: '/skill-builder'},
+  {icon: Bot, key: 'landing.agent', href: '/agent-builder'},
 ];
 
 export default async function Home() {
@@ -42,9 +42,6 @@ export default async function Home() {
                 <CardDescription>{t(`${card.key}.description`)}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-slate-700">
-                <p>{t(`${card.key}.step1`)}</p>
-                <p>{t(`${card.key}.step2`)}</p>
-                <p>{t(`${card.key}.step3`)}</p>
                 <Link href={card.href} className="inline-block text-xs font-semibold text-blue-700 underline underline-offset-2">
                   {t('landing.goToBuilder')}
                 </Link>
