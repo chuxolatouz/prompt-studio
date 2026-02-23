@@ -395,6 +395,12 @@
     "resetNeedsEmail": "Enter your email first.",
     "genericError": "Check your details and try again."
   },
+  "cookies": {
+    "title": "Cookie notice",
+    "description": "We use essential cookies to keep your session active and improve your experience. By clicking \"Accept cookies\", you agree to their use in accordance with our cookie policy.",
+    "accept": "Accept cookies",
+    "reject": "Essential only"
+  },
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Your prompts, packs and agents.",

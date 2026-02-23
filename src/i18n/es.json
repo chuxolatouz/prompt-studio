@@ -397,6 +397,12 @@
     "resetNeedsEmail": "Escribe tu correo para recuperar tu contraseña.",
     "genericError": "Revisa tus datos e intenta de nuevo."
   },
+  "cookies": {
+    "title": "Uso de cookies",
+    "description": "Usamos cookies esenciales para mantener tu sesión iniciada y mejorar la experiencia. Al hacer clic en \"Aceptar cookies\", aceptas su uso según nuestra política de cookies.",
+    "accept": "Aceptar cookies",
+    "reject": "Solo esenciales"
+  },
   "dashboard": {
     "title": "Mi cuenta",
     "subtitle": "Tus borradores, publicaciones y favoritos.",

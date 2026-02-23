@@ -26,7 +26,7 @@ const mainLinks = [
 export function SiteHeader() {
   const pathname = usePathname();
   const t = useTranslations();
-  const {user, profileName, signOut, loading} = useAuth();
+  const {user, profileName, signOut} = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const userLabel = profileName || user?.email || t('common.account');
 
@@ -53,7 +53,7 @@ export function SiteHeader() {
               {t(link.key)}
             </Link>
           ))}
-          {!loading && user ? (
+          {user ? (
             <>
               <Link
                 href="/dashboard"
@@ -71,7 +71,7 @@ export function SiteHeader() {
                 {t('auth.logout')}
               </Button>
             </>
-          ) : !loading ? (
+          ) : (
             <div className="flex items-center gap-2">
               <Button asChild size="sm">
                 <Link href="/auth?mode=login">{t('auth.login')}</Link>
@@ -80,7 +80,7 @@ export function SiteHeader() {
                 <Link href="/auth?mode=register">{t('auth.register')}</Link>
               </Button>
             </div>
-          ) : null}
+          )}
         </nav>
 
         <div className="hidden lg:block">
@@ -142,7 +142,7 @@ export function SiteHeader() {
                 {t(link.key)}
               </Link>
             ))}
-            {!loading && user ? (
+            {user ? (
               <>
                 <p className="rounded-lg bg-slate-50 px-2 py-2 text-xs text-[color:var(--prompteero-mid)]">{userLabel}</p>
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
@@ -158,7 +158,7 @@ export function SiteHeader() {
                   {t('auth.logout')}
                 </button>
               </>
-            ) : !loading ? (
+            ) : (
               <>
                 <p className="px-2 pt-2 text-xs font-medium text-slate-500">{t('nav.authSection')}</p>
                 <Link href="/auth?mode=login" onClick={() => setMobileOpen(false)} className="block rounded-lg bg-[color:var(--prompteero-blue)] px-2 py-2 text-sm font-medium text-white hover:bg-[#0f4f87]">
@@ -168,7 +168,7 @@ export function SiteHeader() {
                   {t('auth.register')}
                 </Link>
               </>
-            ) : null}
+            )}
           </div>
         </div>
       )}
