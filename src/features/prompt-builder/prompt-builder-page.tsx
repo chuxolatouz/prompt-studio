@@ -1068,50 +1068,42 @@ export function PromptBuilderPage() {
         <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
             <div className="space-y-6 pb-20">
-              {advancedMode ? (
-                <Card glow className="border-blue-100 bg-white">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-base">{t('promptBuilder.structureTypeTitle')}</CardTitle>
-                      <StepHelp tooltip={t('help.prompt.macro')} />
-                    </div>
-                    <CardDescription>{t('promptBuilder.structureTypeDescription')}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Select value={state.structure} onValueChange={handleStructureChange}>
-                      <SelectTrigger className="w-full max-w-[260px]">
-                        <SelectValue placeholder={t('promptBuilder.structure')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {structures.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>
-                            {getStructureLabel(item.id)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <Card glow className="border-blue-100 bg-white">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">{t('promptBuilder.structureTypeTitle')}</CardTitle>
+                    <StepHelp tooltip={t('help.prompt.macro')} />
+                  </div>
+                  <CardDescription>{t('promptBuilder.structureTypeDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Select value={state.structure} onValueChange={handleStructureChange}>
+                    <SelectTrigger className="w-full max-w-[260px]">
+                      <SelectValue placeholder={t('promptBuilder.structure')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {structures.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {getStructureLabel(item.id)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                    {currentStructure ? (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-sm font-semibold text-slate-900">{t('promptBuilder.structureGuideTitle', {structure: getStructureLabel(currentStructure.id)})}</p>
-                        <p className="mt-1 text-sm text-slate-600">{t(currentStructure.whatIsKey)}</p>
-                        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('structuresPage.whenToUse')}</p>
-                        <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                          {currentStructure.whenToUseKeys.map((key) => (
-                            <li key={key}>{t(key)}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="border-blue-100 bg-blue-50/50">
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-slate-700">{t('promptBuilder.simpleModeDescription')}</p>
-                  </CardContent>
-                </Card>
-              )}
+                  {currentStructure ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-sm font-semibold text-slate-900">{t('promptBuilder.structureGuideTitle', {structure: getStructureLabel(currentStructure.id)})}</p>
+                      <p className="mt-1 text-sm text-slate-600">{t(currentStructure.whatIsKey)}</p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('structuresPage.whenToUse')}</p>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        {currentStructure.whenToUseKeys.map((key) => (
+                          <li key={key}>{t(key)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
 
               {advancedMode && mode === 'quest' && (
                 <Card glow className="border-emerald-200 bg-emerald-50/50">
