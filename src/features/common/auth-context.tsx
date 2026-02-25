@@ -83,8 +83,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       signUp: async (email, password) => {
         const supabase = getSupabaseBrowserClient();
         if (!supabase) return {error: 'Supabase disabled'};
-        const {error} = await supabase.auth.signUp({email, password});
-        return {error: error?.message};
+        const {data, error} = await supabase.auth.signUp({email, password});
+        if (error) return {error: error.message};
+
+        if (!data.session) {
+          const {error: signInError} = await supabase.auth.signInWithPassword({email, password});
+          if (signInError) return {error: signInError.message};
+        }
+
+        return {};
       },
       resetPassword: async (email) => {
         const supabase = getSupabaseBrowserClient();

@@ -6,6 +6,7 @@ import {Logo} from '@/components/layout/logo';
 import {Badge} from '@/components/ui/badge';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {ParticleField} from '@/components/ui/particle-field';
+import {ShowWhenLoggedOut} from '@/features/common/show-when-logged-out';
 
 const cards = [
   {icon: TextCursorInput, key: 'landing.prompt', href: '/prompt-builder'},
@@ -55,42 +56,44 @@ export default async function Home() {
         })}
       </section>
 
-      <section>
-        <Card glow>
-          <CardHeader>
-            <UserRoundPlus className="h-10 w-10 text-[color:var(--prompteero-blue)]" />
-            <CardTitle>{t('landing.account.title')}</CardTitle>
-            <CardDescription>{t('landing.account.description')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button asChild>
-                <Link href="/auth?mode=login">{t('auth.login')}</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/auth?mode=register">{t('auth.register')}</Link>
-              </Button>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Link href="/auth?mode=login&next=/skill-builder" className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
-                <p className="text-sm font-semibold text-slate-900">{t('landing.account.createSkillTitle')}</p>
-                <p className="mt-1 text-xs text-slate-600">{t('landing.account.createSkillDescription')}</p>
-              </Link>
-              <Link href="/auth?mode=login&next=/dashboard" className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
-                <p className="text-sm font-semibold text-slate-900">{t('landing.account.saveTitle')}</p>
-                <p className="mt-1 text-xs text-slate-600">{t('landing.account.saveDescription')}</p>
-              </Link>
-              <Link href="/auth?mode=login&next=/gallery" className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
-                <p className="flex items-center gap-1 text-sm font-semibold text-slate-900">
-                  <Heart className="h-4 w-4 text-[color:var(--prompteero-blue)]" />
-                  {t('landing.account.likeTitle')}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">{t('landing.account.likeDescription')}</p>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+      <ShowWhenLoggedOut>
+        <section>
+          <Card glow>
+            <CardHeader>
+              <UserRoundPlus className="h-10 w-10 text-[color:var(--prompteero-blue)]" />
+              <CardTitle>{t('landing.account.title')}</CardTitle>
+              <CardDescription>{t('landing.account.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link href="/auth?mode=login">{t('auth.login')}</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/auth?mode=register">{t('auth.register')}</Link>
+                </Button>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <Link href="/auth?mode=login&next=/skill-builder" className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
+                  <p className="text-sm font-semibold text-slate-900">{t('landing.account.createSkillTitle')}</p>
+                  <p className="mt-1 text-xs text-slate-600">{t('landing.account.createSkillDescription')}</p>
+                </Link>
+                <Link href="/auth?mode=login&next=/dashboard" className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
+                  <p className="text-sm font-semibold text-slate-900">{t('landing.account.saveTitle')}</p>
+                  <p className="mt-1 text-xs text-slate-600">{t('landing.account.saveDescription')}</p>
+                </Link>
+                <Link href="/auth?mode=login&next=/gallery" className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
+                  <p className="flex items-center gap-1 text-sm font-semibold text-slate-900">
+                    <Heart className="h-4 w-4 text-[color:var(--prompteero-blue)]" />
+                    {t('landing.account.likeTitle')}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">{t('landing.account.likeDescription')}</p>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </ShowWhenLoggedOut>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card glow>

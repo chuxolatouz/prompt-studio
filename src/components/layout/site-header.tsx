@@ -72,14 +72,9 @@ export function SiteHeader() {
               </Button>
             </>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button asChild size="sm">
-                <Link href="/auth?mode=login">{t('auth.login')}</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/auth?mode=register">{t('auth.register')}</Link>
-              </Button>
-            </div>
+            <Button asChild size="sm">
+              <Link href="/auth?mode=login">{t('nav.auth')}</Link>
+            </Button>
           )}
         </nav>
 
@@ -162,10 +157,7 @@ export function SiteHeader() {
               <>
                 <p className="px-2 pt-2 text-xs font-medium text-slate-500">{t('nav.authSection')}</p>
                 <Link href="/auth?mode=login" onClick={() => setMobileOpen(false)} className="block rounded-lg bg-[color:var(--prompteero-blue)] px-2 py-2 text-sm font-medium text-white hover:bg-[#0f4f87]">
-                  {t('auth.login')}
-                </Link>
-                <Link href="/auth?mode=register" onClick={() => setMobileOpen(false)} className="mt-2 block rounded-lg border border-[color:var(--prompteero-light)] px-2 py-2 text-sm font-medium text-[color:var(--prompteero-dark)] hover:bg-slate-50">
-                  {t('auth.register')}
+                  {t('nav.auth')}
                 </Link>
               </>
             )}

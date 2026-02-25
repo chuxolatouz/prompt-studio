@@ -60,7 +60,7 @@
     "structures": "Structures",
     "gallery": "Gallery",
     "dashboard": "Dashboard",
-    "auth": "Login",
+    "auth": "Access",
     "authSection": "Access"
   },
   "filters": {
@@ -391,8 +391,21 @@
     "passwordPlaceholder": "********",
     "continue": "Continue",
     "forgotPassword": "Forgot your password?",
+    "forgotTitle": "Reset password",
+    "forgotSubtitle": "We will send you a link to reset your password.",
+    "sendRecovery": "Send reset link",
+    "backToLogin": "Back to sign in",
+    "recoveryTitle": "Set new password",
+    "recoverySubtitle": "Choose a new password for your account.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "updatePassword": "Update password",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordTooShort": "Password must be at least 8 characters.",
+    "passwordUpdated": "Password updated ✅",
     "resetSent": "Password reset email sent.",
     "resetNeedsEmail": "Enter your email first.",
+    "recoveryConfigError": "Set NEXT_PUBLIC_APP_URL to your public domain to send recovery links.",
     "genericError": "Check your details and try again."
   },
   "cookies": {
