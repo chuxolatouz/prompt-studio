@@ -10,6 +10,7 @@ import {LocaleSwitcher} from '@/components/layout/locale-switcher';
 import {Logo} from '@/components/layout/logo';
 import {Button} from '@/components/ui/button';
 import {useAuth} from '@/features/common/auth-context';
+import {buildAuthHref} from '@/lib/auth';
 
 const builderLinks = [
   {href: '/prompt-builder', key: 'nav.promptBuilder'},
@@ -26,7 +27,7 @@ const mainLinks = [
 export function SiteHeader() {
   const pathname = usePathname();
   const t = useTranslations();
-  const {user, profileName, signOut} = useAuth();
+  const {user, profileName, signOut, loading} = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const userLabel = profileName || user?.email || t('common.account');
 
@@ -53,7 +54,9 @@ export function SiteHeader() {
               {t(link.key)}
             </Link>
           ))}
-          {user ? (
+          {loading ? (
+            <div className="h-8 w-24 rounded-lg bg-slate-100" aria-hidden="true" />
+          ) : user ? (
             <>
               <Link
                 href="/dashboard"
@@ -73,7 +76,7 @@ export function SiteHeader() {
             </>
           ) : (
             <Button asChild size="sm">
-              <Link href="/auth?mode=login">{t('nav.auth')}</Link>
+              <Link href={buildAuthHref('login', {intent: 'general'})}>{t('nav.auth')}</Link>
             </Button>
           )}
         </nav>
@@ -137,7 +140,9 @@ export function SiteHeader() {
                 {t(link.key)}
               </Link>
             ))}
-            {user ? (
+            {loading ? (
+              <div className="h-10 rounded-lg bg-slate-100" aria-hidden="true" />
+            ) : user ? (
               <>
                 <p className="rounded-lg bg-slate-50 px-2 py-2 text-xs text-[color:var(--prompteero-mid)]">{userLabel}</p>
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
@@ -156,7 +161,11 @@ export function SiteHeader() {
             ) : (
               <>
                 <p className="px-2 pt-2 text-xs font-medium text-slate-500">{t('nav.authSection')}</p>
-                <Link href="/auth?mode=login" onClick={() => setMobileOpen(false)} className="block rounded-lg bg-[color:var(--prompteero-blue)] px-2 py-2 text-sm font-medium text-white hover:bg-[#0f4f87]">
+                <Link
+                  href={buildAuthHref('login', {intent: 'general'})}
+                  onClick={() => setMobileOpen(false)}
+                  className="block rounded-lg bg-[color:var(--prompteero-blue)] px-2 py-2 text-sm font-medium text-white hover:bg-[#0f4f87]"
+                >
                   {t('nav.auth')}
                 </Link>
               </>

@@ -1,11 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import {useEffect, useState} from 'react';
 import {useTranslations} from 'next-intl';
+import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Badge} from '@/components/ui/badge';
 import {useAuth} from '@/features/common/auth-context';
-import {readLocal, storageKeys} from '@/lib/storage';
+import {buildAuthHref} from '@/lib/auth';
 import {featureFlags} from '@/lib/feature-flags';
 import {getSupabaseBrowserClient} from '@/lib/supabase';
 
@@ -13,36 +15,27 @@ type Item = {id: string; title: string; created_at?: string; visibility?: string
 
 export default function DashboardPage() {
   const t = useTranslations();
-  const {user} = useAuth();
+  const {user, loading} = useAuth();
   const [prompts, setPrompts] = useState<Item[]>([]);
   const [packs, setPacks] = useState<Item[]>([]);
   const [agents, setAgents] = useState<Item[]>([]);
   const [favorites, setFavorites] = useState<Item[]>([]);
 
   useEffect(() => {
-    const localPromptDraft = readLocal<{state?: {title?: string}} | null>(storageKeys.promptDrafts, null);
-    const localPack = readLocal<any>(storageKeys.skillPacks, null);
-    const localAgent = readLocal<any>(storageKeys.agents, null);
-
-    setPrompts(localPromptDraft?.state ? [{id: 'local-p-0', title: localPromptDraft.state.title || t('dashboard.untitled')}] : []);
-    setPacks(localPack ? [{id: localPack.id, title: localPack.title}] : []);
-    setAgents(localAgent ? [{id: localAgent.id, title: localAgent.title}] : []);
-    setFavorites([]);
-
     if (!featureFlags.supabase || !user) return;
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
     supabase.from('prompts').select('id,title,created_at,visibility').eq('owner_id', user.id).then(({data}) => {
-      if (data) setPrompts((prev) => [...prev, ...(data as Item[])]);
+      setPrompts((data as Item[]) ?? []);
     });
 
     supabase.from('skill_packs').select('id,title,created_at,visibility').eq('owner_id', user.id).then(({data}) => {
-      if (data) setPacks((prev) => [...prev, ...(data as Item[])]);
+      setPacks((data as Item[]) ?? []);
     });
 
     supabase.from('agents').select('id,title,created_at,visibility').eq('owner_id', user.id).then(({data}) => {
-      if (data) setAgents((prev) => [...prev, ...(data as Item[])]);
+      setAgents((data as Item[]) ?? []);
     });
 
     supabase
@@ -51,6 +44,7 @@ export default function DashboardPage() {
       .eq('user_id', user.id)
       .then(async ({data}) => {
         const ids = (data ?? []).map((row) => String((row as {prompt_id: string}).prompt_id)).filter(Boolean);
+
         if (ids.length === 0) {
           setFavorites([]);
           return;
@@ -59,7 +53,7 @@ export default function DashboardPage() {
         const {data: promptData} = await supabase.from('prompts').select('id,title,created_at,visibility').in('id', ids);
         setFavorites((promptData as Item[]) ?? []);
       });
-  }, [t, user]);
+  }, [user]);
 
   const Section = ({title, subtitle, items}: {title: string; subtitle: string; items: Item[]}) => (
     <Card>
@@ -81,6 +75,52 @@ export default function DashboardPage() {
       </CardContent>
     </Card>
   );
+
+  if (!featureFlags.supabase) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('dashboard.disabledTitle')}</CardTitle>
+            <CardDescription>{t('dashboard.disabledDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/builders">{t('auth.exploreBuilders')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <p className="text-sm text-slate-600">{t('common.loading')}</p>;
+  }
+
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('dashboard.authRequiredTitle')}</CardTitle>
+            <CardDescription>{t('dashboard.authRequiredSubtitle')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-slate-600">{t('dashboard.authRequiredDescription')}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href={buildAuthHref('login', {next: '/dashboard', intent: 'account'})}>{t('auth.login')}</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/builders">{t('auth.exploreBuilders')}</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

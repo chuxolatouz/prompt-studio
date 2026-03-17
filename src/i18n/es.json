@@ -408,7 +408,56 @@
     "resetSent": "Te enviamos un enlace para restablecer tu contraseña.",
     "resetNeedsEmail": "Escribe tu correo para recuperar tu contraseña.",
     "recoveryConfigError": "Configura NEXT_PUBLIC_APP_URL con tu dominio público para enviar el enlace de recuperación.",
-    "genericError": "Revisa tus datos e intenta de nuevo."
+    "genericError": "Revisa tus datos e intenta de nuevo.",
+    "emailRequired": "Escribe tu correo.",
+    "emailInvalid": "Usa un correo válido.",
+    "passwordRequired": "Escribe tu contraseña.",
+    "confirmPasswordRequired": "Confirma tu contraseña.",
+    "invalidCredentials": "Correo o contraseña incorrectos.",
+    "emailInUse": "Ya existe una cuenta con ese correo.",
+    "emailConfirmationRequired": "Revisa tu correo para confirmar tu cuenta.",
+    "rateLimited": "Hiciste demasiados intentos. Espera un momento e intenta de nuevo.",
+    "showPassword": "Mostrar",
+    "hidePassword": "Ocultar",
+    "loginPending": "Entrando...",
+    "registerPending": "Creando cuenta...",
+    "sendRecoveryPending": "Enviando enlace...",
+    "updatePasswordPending": "Actualizando contraseña...",
+    "checkEmailTitle": "Revisa tu correo",
+    "emailConfirmationDescription": "Creamos tu cuenta. Abre {email} y confirma tu correo para continuar.",
+    "resetSentTitle": "Enlace enviado",
+    "resetSentDescription": "Enviamos un enlace de recuperación a {email}. Revisa tu bandeja y spam.",
+    "optionalEyebrow": "Cuenta opcional",
+    "optionalHint": "Puedes seguir usando los builders sin cuenta. La cuenta te ayuda a publicar, guardar favoritos y abrir tu espacio personal.",
+    "intentBenefitTitle": "Qué desbloquea tu cuenta",
+    "exploreBuilders": "Seguir en Builders",
+    "intents": {
+      "general": {
+        "title": "Inicia sesión para continuar",
+        "subtitle": "Necesitas una cuenta para publicar, guardar favoritos o abrir tu espacio personal.",
+        "benefit": "Publica, guarda favoritos y entra a tu espacio personal."
+      },
+      "publish": {
+        "title": "Inicia sesión para publicar",
+        "subtitle": "Publica tu prompt en la galería y vuelve al punto exacto donde estabas.",
+        "benefit": "Comparte tu trabajo y gestiona lo que publicas."
+      },
+      "favorite": {
+        "title": "Inicia sesión para guardar favoritos",
+        "subtitle": "Guarda prompts en favoritos y vuelve a la galería sin perder el contexto.",
+        "benefit": "Crea tu colección de prompts útiles."
+      },
+      "account": {
+        "title": "Accede a tu cuenta",
+        "subtitle": "Entra para ver tus publicaciones y favoritos en un solo lugar.",
+        "benefit": "Abre tu espacio personal sin perder el hilo."
+      },
+      "save": {
+        "title": "Crea tu cuenta para seguir con tu trabajo",
+        "subtitle": "La cuenta te ayuda a retomar tu flujo cuando necesitas publicar o abrir tu espacio.",
+        "benefit": "Mantén tus acciones importantes conectadas a tu cuenta."
+      }
+    }
   },
   "cookies": {
     "title": "Uso de cookies",
@@ -418,7 +467,7 @@
   },
   "dashboard": {
     "title": "Mi cuenta",
-    "subtitle": "Tus borradores, publicaciones y favoritos.",
+    "subtitle": "Tus publicaciones, packs y favoritos.",
     "prompts": "Prompts",
     "myPrompts": "Mis prompts",
     "skillPacks": "Skills",
@@ -429,7 +478,12 @@
     "myFavorites": "Mis favoritos",
     "empty": "Aún no hay elementos.",
     "local": "Local",
-    "untitled": "Sin título"
+    "untitled": "Sin título",
+    "authRequiredTitle": "Accede a tu cuenta",
+    "authRequiredSubtitle": "Inicia sesión para ver tus publicaciones y favoritos.",
+    "authRequiredDescription": "Los builders siguen funcionando sin cuenta. Tu cuenta organiza lo que publicas y guardas.",
+    "disabledTitle": "Cuenta no disponible",
+    "disabledDescription": "Configura Supabase para habilitar la autenticación y el espacio personal."
   },
   "admin": {
     "title": "Admin",

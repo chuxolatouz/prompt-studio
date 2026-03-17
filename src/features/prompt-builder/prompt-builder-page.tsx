@@ -934,7 +934,7 @@ export function PromptBuilderPage() {
 
   return (
     <>
-      <AuthGateModal open={authModalOpen} onOpenChange={setAuthModalOpen} returnTo={returnTo} action="publish" />
+      <AuthGateModal open={authModalOpen} onOpenChange={setAuthModalOpen} returnTo={returnTo} action="publish" intent="publish" />
 
       <Modal
         open={macroModalOpen}

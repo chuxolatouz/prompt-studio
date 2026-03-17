@@ -406,7 +406,56 @@
     "resetSent": "Password reset email sent.",
     "resetNeedsEmail": "Enter your email first.",
     "recoveryConfigError": "Set NEXT_PUBLIC_APP_URL to your public domain to send recovery links.",
-    "genericError": "Check your details and try again."
+    "genericError": "Check your details and try again.",
+    "emailRequired": "Enter your email.",
+    "emailInvalid": "Use a valid email address.",
+    "passwordRequired": "Enter your password.",
+    "confirmPasswordRequired": "Confirm your password.",
+    "invalidCredentials": "Incorrect email or password.",
+    "emailInUse": "An account with this email already exists.",
+    "emailConfirmationRequired": "Check your inbox to confirm your account.",
+    "rateLimited": "Too many attempts. Wait a moment and try again.",
+    "showPassword": "Show",
+    "hidePassword": "Hide",
+    "loginPending": "Signing in...",
+    "registerPending": "Creating account...",
+    "sendRecoveryPending": "Sending link...",
+    "updatePasswordPending": "Updating password...",
+    "checkEmailTitle": "Check your email",
+    "emailConfirmationDescription": "We created your account. Open {email} and confirm your email to continue.",
+    "resetSentTitle": "Link sent",
+    "resetSentDescription": "We sent a recovery link to {email}. Check your inbox and spam folder.",
+    "optionalEyebrow": "Optional account",
+    "optionalHint": "You can keep using the builders without an account. Your account helps you publish, save favorites, and open your personal space.",
+    "intentBenefitTitle": "What your account unlocks",
+    "exploreBuilders": "Keep exploring Builders",
+    "intents": {
+      "general": {
+        "title": "Sign in to continue",
+        "subtitle": "You need an account to publish, save favorites, or open your personal space.",
+        "benefit": "Publish, save favorites, and access your personal space."
+      },
+      "publish": {
+        "title": "Sign in to publish",
+        "subtitle": "Publish your prompt to the gallery and return to the exact point where you left off.",
+        "benefit": "Share your work and manage what you publish."
+      },
+      "favorite": {
+        "title": "Sign in to save favorites",
+        "subtitle": "Save prompts to favorites and return to the gallery without losing context.",
+        "benefit": "Build your own collection of useful prompts."
+      },
+      "account": {
+        "title": "Access your account",
+        "subtitle": "Sign in to view your published work and favorites in one place.",
+        "benefit": "Open your personal space without losing the thread."
+      },
+      "save": {
+        "title": "Create your account to continue your work",
+        "subtitle": "Your account helps you pick up your flow whenever you need to publish or open your personal space.",
+        "benefit": "Keep your important actions connected to your account."
+      }
+    }
   },
   "cookies": {
     "title": "Cookie notice",
@@ -416,7 +465,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Your prompts, packs and agents.",
+    "subtitle": "Your published work, packs, and favorites.",
     "prompts": "Prompts",
     "myPrompts": "My prompts",
     "skillPacks": "Skill Packs",
@@ -427,7 +476,12 @@
     "myFavorites": "My favorites",
     "empty": "No items yet.",
     "local": "Local",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "authRequiredTitle": "Access your account",
+    "authRequiredSubtitle": "Sign in to view your published work and favorites.",
+    "authRequiredDescription": "The builders still work without an account. Your account keeps together what you publish and save.",
+    "disabledTitle": "Account unavailable",
+    "disabledDescription": "Configure Supabase to enable authentication and the personal space."
   },
   "admin": {
     "title": "Admin",

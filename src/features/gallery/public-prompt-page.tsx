@@ -265,7 +265,7 @@ export function PublicPromptPage({slug}: {slug: string}) {
 
   return (
     <>
-      <AuthGateModal open={authGateOpen} onOpenChange={setAuthGateOpen} returnTo={`/p/${slug}`} action="favorite" />
+      <AuthGateModal open={authGateOpen} onOpenChange={setAuthGateOpen} returnTo={`/p/${slug}`} action="favorite" intent="favorite" />
 
       <Card>
         <CardHeader>

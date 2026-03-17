@@ -237,6 +237,7 @@ export function GalleryPage() {
         onOpenChange={setAuthGateOpen}
         returnTo={pendingFavoriteId ? `/gallery?action=favorite&promptId=${pendingFavoriteId}` : '/gallery'}
         action="favorite"
+        intent="favorite"
       />
 
       <div className="space-y-4">

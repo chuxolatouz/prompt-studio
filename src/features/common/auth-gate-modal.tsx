@@ -4,34 +4,38 @@ import Link from 'next/link';
 import {useTranslations} from 'next-intl';
 import {Button} from '@/components/ui/button';
 import {Modal} from '@/components/ui/modal';
+import {appendAuthAction, buildAuthHref, type AuthIntent} from '@/lib/auth';
 
 type AuthGateModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   returnTo: string;
   action: 'publish' | 'favorite';
+  intent: AuthIntent;
 };
 
-export function AuthGateModal({open, onOpenChange, returnTo, action}: AuthGateModalProps) {
+export function AuthGateModal({open, onOpenChange, returnTo, action, intent}: AuthGateModalProps) {
   const t = useTranslations();
-  const next = encodeURIComponent(`${returnTo}${returnTo.includes('?') ? '&' : '?'}action=${action}`);
+  const nextPath = appendAuthAction(returnTo, action);
+  const title = t(`auth.intents.${intent}.title`);
+  const description = t(`auth.intents.${intent}.subtitle`);
 
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={t('auth.requiredTitle')}
-      description={t('auth.requiredDesc')}
+      title={title}
+      description={description}
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('actions.cancel')}
           </Button>
           <Button asChild>
-            <Link href={`/auth?mode=login&next=${next}`}>{t('auth.loginToContinue')}</Link>
+            <Link href={buildAuthHref('login', {next: nextPath, intent})}>{t('auth.login')}</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href={`/auth?mode=register&next=${next}`}>{t('auth.register')}</Link>
+            <Link href={buildAuthHref('register', {next: nextPath, intent})}>{t('auth.register')}</Link>
           </Button>
         </>
       }
