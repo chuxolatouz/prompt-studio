@@ -25,6 +25,7 @@ import {toast} from 'sonner';
 type FormMode = 'login' | 'register' | 'forgot' | 'recovery';
 type FieldErrors = Partial<Record<'email' | 'password' | 'confirmPassword' | 'newPassword' | 'confirmNewPassword', string>>;
 type FeedbackTone = 'info' | 'success' | 'error';
+type RecoveryState = 'idle' | 'resolving' | 'ready' | 'invalid';
 type FeedbackState = {
   tone: FeedbackTone;
   title?: string;
@@ -101,6 +102,32 @@ function FeedbackBanner({feedback}: {feedback: FeedbackState | null}) {
   );
 }
 
+function PasswordRequirementHint({
+  currentLength,
+  minimum,
+  pendingLabel,
+  successLabel,
+}: {
+  currentLength: number;
+  minimum: number;
+  pendingLabel: string;
+  successLabel: string;
+}) {
+  const meetsRequirement = currentLength >= minimum;
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-medium',
+        meetsRequirement ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'
+      )}
+    >
+      <span className={cn('h-2.5 w-2.5 rounded-full', meetsRequirement ? 'bg-emerald-500' : 'bg-amber-500')} aria-hidden="true" />
+      <p>{meetsRequirement ? successLabel : pendingLabel}</p>
+    </div>
+  );
+}
+
 export default function AuthPage() {
   const t = useTranslations();
   const router = useRouter();
@@ -118,6 +145,7 @@ export default function AuthPage() {
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [recoveryState, setRecoveryState] = useState<RecoveryState>('idle');
   const queryMode = searchParams.get('mode');
   const intent = parseAuthIntent(searchParams.get('intent'));
   const nextParam = searchParams.get('next');
@@ -143,6 +171,7 @@ export default function AuthPage() {
         ? t('auth.recoverySubtitle')
         : t(`auth.intents.${intent}.subtitle`);
   const benefit = t(`auth.intents.${intent}.benefit`);
+  const trimmedNewPasswordLength = newPassword.trim().length;
 
   useEffect(() => {
     if (queryMode === 'register') {
@@ -173,6 +202,47 @@ export default function AuthPage() {
     setFieldErrors({});
     setFeedback(null);
   }, [mode, intent]);
+
+  useEffect(() => {
+    if (mode !== 'recovery') {
+      setRecoveryState('idle');
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setRecoveryState('invalid');
+      setFeedback({tone: 'error', description: t('auth.recoveryLinkInvalid')});
+      return;
+    }
+
+    let cancelled = false;
+
+    const prepareRecoverySession = async () => {
+      setRecoveryState('resolving');
+      setFeedback({tone: 'info', description: t('auth.recoveryLinkPending')});
+
+      const initResult = await supabase.auth.initialize();
+      const {data, error} = await supabase.auth.getSession();
+
+      if (cancelled) return;
+
+      if (initResult.error || error || !data.session) {
+        setRecoveryState('invalid');
+        setFeedback({tone: 'error', description: t('auth.recoveryLinkInvalid')});
+        return;
+      }
+
+      setRecoveryState('ready');
+      setFeedback(null);
+    };
+
+    void prepareRecoverySession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, t]);
 
   useEffect(() => {
     if (mode === 'recovery') return;
@@ -314,6 +384,18 @@ export default function AuthPage() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
       setFeedback({tone: 'error', description: t('auth.genericError')});
+      return;
+    }
+
+    if (recoveryState !== 'ready') {
+      setFeedback({tone: 'error', description: t('auth.recoveryLinkInvalid')});
+      return;
+    }
+
+    const {data: sessionData, error: sessionError} = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) {
+      setRecoveryState('invalid');
+      setFeedback({tone: 'error', description: t('auth.recoveryLinkInvalid')});
       return;
     }
 
@@ -476,6 +558,12 @@ export default function AuthPage() {
                   autoComplete="new-password"
                   toggleLabel={showNewPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                 />
+                <PasswordRequirementHint
+                  currentLength={trimmedNewPasswordLength}
+                  minimum={8}
+                  pendingLabel={t('auth.passwordRequirementHint', {count: trimmedNewPasswordLength})}
+                  successLabel={t('auth.passwordRequirementReady')}
+                />
                 <PasswordField
                   label={t('auth.confirmPassword')}
                   placeholder={t('auth.passwordPlaceholder')}
@@ -490,7 +578,7 @@ export default function AuthPage() {
               </>
             ) : null}
 
-            <Button className="w-full" type="submit" disabled={pending}>
+            <Button className="w-full" type="submit" disabled={pending || (mode === 'recovery' && recoveryState === 'resolving')}>
               {mode === 'login'
                 ? pending
                   ? t('auth.loginPending')
