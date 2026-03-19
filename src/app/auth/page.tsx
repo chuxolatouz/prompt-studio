@@ -402,21 +402,28 @@ export default function AuthPage() {
     setPending(true);
     setFeedback(null);
 
-    const {error} = await supabase.auth.updateUser({password: newPassword.trim()});
-    const result = authResultFromError(error);
+    try {
+      const {error} = await supabase.auth.updateUser({password: newPassword.trim()});
+      const result = authResultFromError(error);
 
-    setPending(false);
+      if (result.status !== 'success') {
+        setFeedback({
+          tone: 'error',
+          description: t(result.messageKey || 'auth.genericError'),
+        });
+        return;
+      }
 
-    if (result.status !== 'success') {
+      toast.success(t('auth.passwordUpdated'));
+      router.replace(redirectPath);
+    } catch {
       setFeedback({
         tone: 'error',
-        description: t(result.messageKey || 'auth.genericError'),
+        description: t('auth.genericError'),
       });
-      return;
+    } finally {
+      setPending(false);
     }
-
-    toast.success(t('auth.passwordUpdated'));
-    router.replace(redirectPath);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

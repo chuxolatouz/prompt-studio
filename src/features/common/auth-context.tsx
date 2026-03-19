@@ -48,28 +48,61 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       return;
     }
 
-    supabase.auth.getSession().then(async ({data}) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      const profile = await syncProfile(data.session?.user ?? null);
-      setIsAdmin(profile.isAdmin);
-      setProfileName(profile.profileName);
+    let cancelled = false;
+
+    const applySession = (nextSession: Session | null) => {
+      if (cancelled) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setLoading(false);
-    });
+    };
+
+    void supabase.auth
+      .getSession()
+      .then(({data}) => {
+        applySession(data.session);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
 
     const {
       data: {subscription},
-    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
-      const profile = await syncProfile(nextSession?.user ?? null);
-      setIsAdmin(profile.isAdmin);
-      setProfileName(profile.profileName);
-      setLoading(false);
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      applySession(nextSession);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateProfile = async () => {
+      if (!user) {
+        if (cancelled) return;
+        setIsAdmin(false);
+        setProfileName(null);
+        return;
+      }
+
+      const profile = await syncProfile(user);
+      if (cancelled) return;
+
+      setIsAdmin(profile.isAdmin);
+      setProfileName(profile.profileName);
+    };
+
+    void hydrateProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
