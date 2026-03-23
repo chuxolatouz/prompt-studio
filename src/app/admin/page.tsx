@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect, useMemo, useState} from 'react';
-import {Plus, Settings2} from 'lucide-react';
+import {ChevronLeft, ChevronRight, Plus, Search, Settings2} from 'lucide-react';
 import {useLocale, useTranslations} from 'next-intl';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
@@ -88,6 +88,8 @@ type PaletteFormState = {
 };
 
 const SEGMENT_OPTIONS = ['role', 'goal', 'context', 'inputs', 'constraints', 'output-format', 'examples'];
+const PAGE_SIZE = 6;
+type AdminTabKey = 'moderation' | 'structures' | 'roles' | 'palette' | 'suggestions';
 
 function splitLines(value: string) {
   return value
@@ -101,6 +103,68 @@ function splitComma(value: string) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function paginateItems<T>(items: T[], page: number, pageSize = PAGE_SIZE) {
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const start = (safePage - 1) * pageSize;
+
+  return {
+    items: items.slice(start, start + pageSize),
+    page: safePage,
+    totalPages,
+    totalItems: items.length,
+  };
+}
+
+function AdminListControls({
+  query,
+  onQueryChange,
+  onPrevPage,
+  onNextPage,
+  page,
+  totalPages,
+  totalItems,
+  placeholder,
+  resultsLabel,
+  prevLabel,
+  nextLabel,
+  pageLabel,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  placeholder: string;
+  resultsLabel: string;
+  prevLabel: string;
+  nextLabel: string;
+  pageLabel: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 md:flex-row md:items-center md:justify-between">
+      <div className="relative w-full md:max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={placeholder} className="pl-9" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        <span>{resultsLabel.replace('{count}', String(totalItems))}</span>
+        <span>{pageLabel.replace('{page}', String(page)).replace('{total}', String(totalPages))}</span>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={onPrevPage}>
+          <ChevronLeft className="mr-1 h-4 w-4" />
+          {prevLabel}
+        </Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={onNextPage}>
+          {nextLabel}
+          <ChevronRight className="ml-1 h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function toStructureForm(record?: PromptStructureRecord): StructureFormState {
@@ -221,8 +285,31 @@ export default function AdminPage() {
   const [structureForm, setStructureForm] = useState<StructureFormState>(toStructureForm());
   const [roleForm, setRoleForm] = useState<RoleFormState>(toRoleForm());
   const [paletteForm, setPaletteForm] = useState<PaletteFormState>(toPaletteForm());
+  const [queries, setQueries] = useState<Record<AdminTabKey, string>>({
+    moderation: '',
+    structures: '',
+    roles: '',
+    palette: '',
+    suggestions: '',
+  });
+  const [pages, setPages] = useState<Record<AdminTabKey, number>>({
+    moderation: 1,
+    structures: 1,
+    roles: 1,
+    palette: 1,
+    suggestions: 1,
+  });
 
   const isEnabled = featureFlags.catalogAdmin && featureFlags.moderation && featureFlags.suggestions;
+
+  const setQuery = (tab: AdminTabKey, value: string) => {
+    setQueries((prev) => ({...prev, [tab]: value}));
+    setPages((prev) => ({...prev, [tab]: 1}));
+  };
+
+  const goToPage = (tab: AdminTabKey, nextPage: number) => {
+    setPages((prev) => ({...prev, [tab]: Math.max(1, nextPage)}));
+  };
 
   const reloadAdminData = async () => {
     if (!user || !isAdmin) return;
@@ -244,6 +331,40 @@ export default function AdminPage() {
   }, [isAdmin, isEnabled, user]);
 
   const activeStructures = useMemo(() => structures.filter((item) => item.isActive), [structures]);
+
+  const moderationView = useMemo(() => {
+    const query = queries.moderation.trim().toLowerCase();
+    const filtered = reports.filter((item) => `${item.target_id} ${item.reason} ${item.status}`.toLowerCase().includes(query));
+    return paginateItems(filtered, pages.moderation);
+  }, [pages.moderation, queries.moderation, reports]);
+
+  const structuresView = useMemo(() => {
+    const query = queries.structures.trim().toLowerCase();
+    const filtered = structures.filter((item) => `${item.id} ${item.label} ${item.whatIs} ${item.columnOrder.join(' ')}`.toLowerCase().includes(query));
+    return paginateItems(filtered, pages.structures);
+  }, [pages.structures, queries.structures, structures]);
+
+  const rolesView = useMemo(() => {
+    const query = queries.roles.trim().toLowerCase();
+    const filtered = roles.filter((item) => `${item.id} ${item.label} ${item.icon} ${item.description}`.toLowerCase().includes(query));
+    return paginateItems(filtered, pages.roles);
+  }, [pages.roles, queries.roles, roles]);
+
+  const paletteView = useMemo(() => {
+    const query = queries.palette.trim().toLowerCase();
+    const filtered = paletteBlocks.filter((item) =>
+      `${item.id} ${item.title} ${item.content} ${item.niche} ${item.structure} ${item.targetColumn} ${item.tags.join(' ')}`.toLowerCase().includes(query)
+    );
+    return paginateItems(filtered, pages.palette);
+  }, [pages.palette, paletteBlocks, queries.palette]);
+
+  const suggestionsView = useMemo(() => {
+    const query = queries.suggestions.trim().toLowerCase();
+    const filtered = suggestions.filter((item) =>
+      `${item.title} ${item.message} ${item.category} ${item.status} ${item.linkedEntityId ?? ''}`.toLowerCase().includes(query)
+    );
+    return paginateItems(filtered, pages.suggestions);
+  }, [pages.suggestions, queries.suggestions, suggestions]);
 
   const setPromptStatus = async (reportId: string, targetId: string, status: 'hidden' | 'active') => {
     const supabase = getSupabaseBrowserClient();
@@ -416,21 +537,35 @@ export default function AdminPage() {
         </TabsList>
 
         <TabsContent value="moderation" className="space-y-4">
-          {reports.length === 0 ? (
+          <AdminListControls
+            query={queries.moderation}
+            onQueryChange={(value) => setQuery('moderation', value)}
+            onPrevPage={() => goToPage('moderation', moderationView.page - 1)}
+            onNextPage={() => goToPage('moderation', moderationView.page + 1)}
+            page={moderationView.page}
+            totalPages={moderationView.totalPages}
+            totalItems={moderationView.totalItems}
+            placeholder={t('admin.searchModeration')}
+            resultsLabel={t('admin.results', {count: '{count}'})}
+            prevLabel={t('admin.prev')}
+            nextLabel={t('admin.next')}
+            pageLabel={t('admin.pageIndicator', {page: '{page}', total: '{total}'})}
+          />
+          {moderationView.totalItems === 0 ? (
             <Card>
               <CardContent className="pt-4 text-sm text-slate-600">{t('admin.empty')}</CardContent>
             </Card>
           ) : (
-            reports.map((report) => (
+            moderationView.items.map((report) => (
               <Card key={report.id}>
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <CardTitle className="text-base">{report.target_id}</CardTitle>
                   <CardDescription>
                     {new Date(report.created_at).toLocaleString(locale)} · {report.status}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-slate-700">{report.reason}</p>
+                  <p className="line-clamp-2 text-sm text-slate-700">{report.reason}</p>
                   <Input
                     value={reportReasons[report.id] ?? ''}
                     onChange={(event) => setReportReasons((prev) => ({...prev, [report.id]: event.target.value}))}
@@ -462,17 +597,31 @@ export default function AdminPage() {
               {t('admin.addStructure')}
             </Button>
           </div>
+          <AdminListControls
+            query={queries.structures}
+            onQueryChange={(value) => setQuery('structures', value)}
+            onPrevPage={() => goToPage('structures', structuresView.page - 1)}
+            onNextPage={() => goToPage('structures', structuresView.page + 1)}
+            page={structuresView.page}
+            totalPages={structuresView.totalPages}
+            totalItems={structuresView.totalItems}
+            placeholder={t('admin.searchStructures')}
+            resultsLabel={t('admin.results', {count: '{count}'})}
+            prevLabel={t('admin.prev')}
+            nextLabel={t('admin.next')}
+            pageLabel={t('admin.pageIndicator', {page: '{page}', total: '{total}'})}
+          />
           <div className="grid gap-4">
-            {structures.map((item) => (
+            {structuresView.items.map((item) => (
               <Card key={item.id}>
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <CardTitle className="text-base">{item.id} · {item.label}</CardTitle>
                   <CardDescription>
                     {item.isActive ? t('admin.active') : t('admin.inactive')} · {t('admin.sortOrderLabel')}: {item.sortOrder}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-slate-700">{item.whatIs}</p>
+                  <p className="line-clamp-2 text-sm text-slate-700">{item.whatIs}</p>
                   <p className="text-xs text-slate-500">{item.columnOrder.join(' · ')}</p>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={() => {
@@ -528,15 +677,29 @@ export default function AdminPage() {
               {t('admin.addRole')}
             </Button>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {roles.map((item) => (
+          <AdminListControls
+            query={queries.roles}
+            onQueryChange={(value) => setQuery('roles', value)}
+            onPrevPage={() => goToPage('roles', rolesView.page - 1)}
+            onNextPage={() => goToPage('roles', rolesView.page + 1)}
+            page={rolesView.page}
+            totalPages={rolesView.totalPages}
+            totalItems={rolesView.totalItems}
+            placeholder={t('admin.searchRoles')}
+            resultsLabel={t('admin.results', {count: '{count}'})}
+            prevLabel={t('admin.prev')}
+            nextLabel={t('admin.next')}
+            pageLabel={t('admin.pageIndicator', {page: '{page}', total: '{total}'})}
+          />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {rolesView.items.map((item) => (
               <Card key={item.id}>
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <CardTitle className="text-base">{item.label}</CardTitle>
                   <CardDescription>{item.icon} · {item.isActive ? t('admin.active') : t('admin.inactive')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {item.description ? <p className="text-sm text-slate-700">{item.description}</p> : null}
+                  {item.description ? <p className="line-clamp-2 text-sm text-slate-700">{item.description}</p> : null}
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={() => {
                       setRoleForm(toRoleForm(item));
@@ -591,17 +754,31 @@ export default function AdminPage() {
               {t('admin.addPaletteBlock')}
             </Button>
           </div>
-          <div className="grid gap-4">
-            {paletteBlocks.map((item) => (
+          <AdminListControls
+            query={queries.palette}
+            onQueryChange={(value) => setQuery('palette', value)}
+            onPrevPage={() => goToPage('palette', paletteView.page - 1)}
+            onNextPage={() => goToPage('palette', paletteView.page + 1)}
+            page={paletteView.page}
+            totalPages={paletteView.totalPages}
+            totalItems={paletteView.totalItems}
+            placeholder={t('admin.searchPalette')}
+            resultsLabel={t('admin.results', {count: '{count}'})}
+            prevLabel={t('admin.prev')}
+            nextLabel={t('admin.next')}
+            pageLabel={t('admin.pageIndicator', {page: '{page}', total: '{total}'})}
+          />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {paletteView.items.map((item) => (
               <Card key={item.id}>
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <CardTitle className="text-base">{item.title}</CardTitle>
                   <CardDescription>
                     {item.niche} · {item.structure} · {item.targetColumn} · {item.level}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-slate-700">{item.content}</p>
+                  <p className="line-clamp-2 text-sm text-slate-700">{item.content}</p>
                   <div className="flex flex-wrap gap-2 text-xs text-slate-500">
                     {item.tags.map((tag) => (
                       <span key={tag} className="rounded-full bg-slate-100 px-2 py-1">{tag}</span>
@@ -650,14 +827,28 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="suggestions" className="space-y-4">
-          {suggestions.length === 0 ? (
+          <AdminListControls
+            query={queries.suggestions}
+            onQueryChange={(value) => setQuery('suggestions', value)}
+            onPrevPage={() => goToPage('suggestions', suggestionsView.page - 1)}
+            onNextPage={() => goToPage('suggestions', suggestionsView.page + 1)}
+            page={suggestionsView.page}
+            totalPages={suggestionsView.totalPages}
+            totalItems={suggestionsView.totalItems}
+            placeholder={t('admin.searchSuggestions')}
+            resultsLabel={t('admin.results', {count: '{count}'})}
+            prevLabel={t('admin.prev')}
+            nextLabel={t('admin.next')}
+            pageLabel={t('admin.pageIndicator', {page: '{page}', total: '{total}'})}
+          />
+          {suggestionsView.totalItems === 0 ? (
             <Card>
               <CardContent className="pt-4 text-sm text-slate-600">{t('admin.noSuggestions')}</CardContent>
             </Card>
           ) : (
-            suggestions.map((item) => (
+            suggestionsView.items.map((item) => (
               <Card key={item.id}>
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <CardTitle className="text-base">{item.title}</CardTitle>
                   <CardDescription>
                     {t(`suggestions.categories.${item.category}`)} · {t(`suggestions.statuses.${item.status}`)} ·{' '}
@@ -665,7 +856,7 @@ export default function AdminPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-slate-700">{item.message}</p>
+                  <p className="line-clamp-3 text-sm text-slate-700">{item.message}</p>
                   {item.linkedEntityType && item.linkedEntityId ? (
                     <p className="text-xs text-slate-500">{item.linkedEntityType} · {item.linkedEntityId}</p>
                   ) : null}
