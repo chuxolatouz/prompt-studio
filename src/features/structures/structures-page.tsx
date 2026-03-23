@@ -1,15 +1,17 @@
 'use client';
 
-import {useTranslations} from 'next-intl';
-import structures from '@/data/structures.json';
+import {useLocale, useTranslations} from 'next-intl';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {StepHelp} from '@/components/ui/step-help';
 import {Textarea} from '@/components/ui/textarea';
+import {usePromptCatalog} from '@/features/common/use-prompt-catalog';
 import {toast} from 'sonner';
 
 export function StructuresPage() {
   const t = useTranslations();
+  const locale = useLocale() as 'es' | 'en';
+  const {structures} = usePromptCatalog(locale);
 
   const copyText = async (value: string) => {
     await navigator.clipboard.writeText(value);
@@ -25,27 +27,24 @@ export function StructuresPage() {
         </CardHeader>
       </Card>
 
-      {(structures as Array<any>).map((structure) => {
-        const template = t(structure.templateKey);
-        const example = t(structure.exampleKey);
-
+      {structures.map((structure) => {
         return (
           <Card key={structure.id}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <span>
-                  {structure.id} - {t(structure.titleKey)}
+                  {structure.id} - {structure.label}
                 </span>
                 <StepHelp tooltip={t('structuresPage.macroTooltip')} />
               </CardTitle>
-              <CardDescription>{t(structure.whatIsKey)}</CardDescription>
+              <CardDescription>{structure.whatIs}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
                 <p className="mb-1 text-sm font-semibold">{t('structuresPage.whenToUse')}</p>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
-                  {structure.whenToUseKeys.map((key: string) => (
-                    <li key={key}>{t(key)}</li>
+                  {structure.whenToUse.map((item) => (
+                    <li key={item}>{item}</li>
                   ))}
                 </ul>
               </div>
@@ -53,20 +52,20 @@ export function StructuresPage() {
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-sm font-semibold">{t('structuresPage.template')}</p>
-                    <Button variant="outline" size="sm" onClick={() => copyText(template)}>
+                    <Button variant="outline" size="sm" onClick={() => copyText(structure.template)}>
                       {t('structuresPage.copyTemplate')}
                     </Button>
                   </div>
-                  <Textarea value={template} readOnly className="min-h-40" />
+                  <Textarea value={structure.template} readOnly className="min-h-40" />
                 </div>
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-sm font-semibold">{t('structuresPage.example')}</p>
-                    <Button variant="outline" size="sm" onClick={() => copyText(example)}>
+                    <Button variant="outline" size="sm" onClick={() => copyText(structure.example)}>
                       {t('structuresPage.copyExample')}
                     </Button>
                   </div>
-                  <Textarea value={example} readOnly className="min-h-40" />
+                  <Textarea value={structure.example} readOnly className="min-h-40" />
                 </div>
               </div>
             </CardContent>

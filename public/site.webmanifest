@@ -1,10 +1,12 @@
 {
   "name": "prompteero",
   "short_name": "prompteero",
-  "description": "Te lo dejo listo para usar",
+  "description": "Guarda y encuentra prompts, publícalos y descubre prompts públicos listos para usar.",
   "theme_color": "#1660A1",
   "background_color": "#FFFFFF",
   "display": "standalone",
+  "start_url": "/es",
+  "scope": "/",
   "icons": [
     {
       "src": "/brand/android-chrome-192.png",

@@ -1,11 +1,12 @@
-import Link from 'next/link';
 import {getTranslations} from 'next-intl/server';
 import {Bot, Puzzle, TextCursorInput} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {Link} from '@/i18n/navigation';
+import type {AppLocale} from '@/i18n/routing';
 
-export async function BuildersHubPage() {
-  const t = await getTranslations();
+export async function BuildersHubPage({locale}: {locale?: AppLocale} = {}) {
+  const t = await getTranslations(locale ? {locale} : undefined);
 
   const items = [
     {

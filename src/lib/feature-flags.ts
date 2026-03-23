@@ -5,4 +5,6 @@ export const featureFlags = {
   publicPublishing: supabaseEnabled,
   gallery: supabaseEnabled,
   moderation: supabaseEnabled,
+  catalogAdmin: supabaseEnabled,
+  suggestions: supabaseEnabled,
 } as const;

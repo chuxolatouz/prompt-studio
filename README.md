@@ -211,6 +211,37 @@ You can also run the curated script at `docs/supabase-schema-v2.sql`.
   - bundle zip (`PROMPT.md`, `PROMPT.txt`, `meta.json`, `segments.json`)
 - Export order respects the final segment order.
 
+## BuilderShell
+- `src/components/builder/BuilderShell.tsx` defines the shared builder anatomy:
+  - shared header with counters and actions
+  - responsive mobile tabs (`Guide`, `Editor`, `Preview`)
+  - desktop 3-column layout (`sidebar`, `editor`, `preview`)
+- Shared builder primitives live in `src/components/builder/`:
+  - `BuilderHeader.tsx`
+  - `HeaderActions.tsx`
+  - `BuilderStepper.tsx`
+  - `PreviewPanel.tsx`
+  - `EmptyState.tsx`
+- Builder configs live in `src/components/builder/configs.ts` and centralize:
+  - `steps`
+  - `requiredForPublish`
+  - `exportFormats`
+
+## Add A Builder
+1. Add or update the builder config in `src/components/builder/configs.ts`.
+2. Compose `sidebar`, `editor`, and `preview` sections in the feature page.
+3. Pass header counters/actions plus the 3 sections into `BuilderShell`.
+4. Put all new UI copy in:
+   - `src/i18n/es.json`
+   - `src/i18n/en.json`
+5. Reuse `HeaderActions`, `BuilderStepper`, `PreviewPanel`, and `EmptyState` instead of creating per-view variants.
+
+## Add A Step
+1. Add the step definition to the corresponding builder config.
+2. Create a scroll target section in the feature page (`id="step-..."`).
+3. Update completion logic so `BuilderStepper` can reflect pending vs complete status.
+4. If the step affects exports or publishing, update the builder config or derived status lists instead of hardcoding another branch in the UI.
+
 ## Manual QA Checklist
 1. Open `/prompt-builder` in a fresh browser profile and verify Quest Mode appears by default.
 2. Complete Role + Goal + Output Format in Quest Mode, continue to Pro Mode, then toggle back to Quest.
@@ -221,13 +252,30 @@ You can also run the curated script at `docs/supabase-schema-v2.sql`.
 7. Open `/gallery`, test search + filters + sort and favorite toggle.
 8. Open `/p/[slug]`, test Copy + Fork + Favorite + Report actions.
 
+## Builder QA
+- Desktop:
+  - `/`
+  - `/builders`
+  - `/prompt-builder`
+  - `/skill-builder`
+  - `/agent-builder`
+  - `/gallery`
+  - `/structures`
+- Mobile:
+  - `/prompt-builder`
+  - `/skill-builder`
+  - `/agent-builder`
+  - confirm `Guide / Editor / Preview` tabs switch correctly
+  - confirm action bars do not collapse or concatenate labels
+  - confirm export menus remain reachable
+
 ## Definition of Done (MVP v1)
 - [x] Landing keeps existing style and uses Builders-focused CTAs.
 - [x] Navbar uses one **Builders** item (desktop dropdown + mobile expandable menu).
 - [x] `/builders` hub exists with 3 cards.
 - [x] `/structures` includes RTF, TAO, BAB, CARE, CO-STAR, CRISPE, STAR.
 - [x] Prompt structures are macro-driven in Prompt Builder.
-- [x] Prompt Builder has versioned state (`version: 1`) validated with zod.
+- [x] Prompt Builder has versioned state (`version: 2`) validated with zod.
 - [x] Prompt Builder palette uses image chips from `/public/chips` and `/data/blocks.json`.
 - [x] Anti-hallucination block is ON by default, editable, resettable.
 - [x] Skill Builder exports folder-based pack with `SKILL.md` files.

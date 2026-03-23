@@ -1,12 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import {useEffect, useState} from 'react';
 import {useTranslations} from 'next-intl';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Badge} from '@/components/ui/badge';
 import {useAuth} from '@/features/common/auth-context';
+import {UserSuggestionsCard} from '@/features/suggestions/user-suggestions-card';
+import {Link} from '@/i18n/navigation';
 import {buildAuthHref} from '@/lib/auth';
 import {featureFlags} from '@/lib/feature-flags';
 import {getSupabaseBrowserClient} from '@/lib/supabase';
@@ -15,7 +16,7 @@ type Item = {id: string; title: string; created_at?: string; visibility?: string
 
 export default function DashboardPage() {
   const t = useTranslations();
-  const {user, loading} = useAuth();
+  const {user, loading, isAdmin} = useAuth();
   const [prompts, setPrompts] = useState<Item[]>([]);
   const [packs, setPacks] = useState<Item[]>([]);
   const [agents, setAgents] = useState<Item[]>([]);
@@ -129,6 +130,13 @@ export default function DashboardPage() {
           <CardTitle>{t('dashboard.title')}</CardTitle>
           <CardDescription>{t('dashboard.subtitle')}</CardDescription>
         </CardHeader>
+        {isAdmin ? (
+          <CardContent className="pt-0">
+            <Button asChild variant="outline">
+              <Link href="/admin">{t('dashboard.goToAdmin')}</Link>
+            </Button>
+          </CardContent>
+        ) : null}
       </Card>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Section title={t('dashboard.prompts')} subtitle={t('dashboard.myPrompts')} items={prompts} />
@@ -136,6 +144,7 @@ export default function DashboardPage() {
         <Section title={t('dashboard.agents')} subtitle={t('dashboard.myAgents')} items={agents} />
         <Section title={t('dashboard.favorites')} subtitle={t('dashboard.myFavorites')} items={favorites} />
       </div>
+      <UserSuggestionsCard />
     </div>
   );
 }

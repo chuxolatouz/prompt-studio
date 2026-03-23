@@ -1,15 +1,14 @@
 'use client';
 
 import {useState} from 'react';
-import Link from 'next/link';
 import {Menu} from 'lucide-react';
-import {usePathname} from 'next/navigation';
 import {useTranslations} from 'next-intl';
 import {cn} from '@/lib/utils';
 import {LocaleSwitcher} from '@/components/layout/locale-switcher';
 import {Logo} from '@/components/layout/logo';
 import {Button} from '@/components/ui/button';
 import {useAuth} from '@/features/common/auth-context';
+import {Link, usePathname} from '@/i18n/navigation';
 import {buildAuthHref} from '@/lib/auth';
 
 const builderLinks = [
@@ -21,13 +20,13 @@ const builderLinks = [
 const mainLinks = [
   {href: '/', key: 'nav.home'},
   {href: '/structures', key: 'nav.structures'},
-  {href: '/gallery', key: 'nav.gallery'},
+  {href: '/prompts', key: 'nav.gallery'},
 ];
 
 export function SiteHeader() {
   const pathname = usePathname();
   const t = useTranslations();
-  const {user, profileName, signOut, loading} = useAuth();
+  const {user, profileName, signOut, loading, isAdmin} = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const userLabel = profileName || user?.email || t('common.account');
 
@@ -67,6 +66,17 @@ export function SiteHeader() {
               >
                 {t('nav.dashboard')}
               </Link>
+              {isAdmin ? (
+                <Link
+                  href="/admin"
+                  className={cn(
+                    'rounded-lg px-2 py-1 text-sm text-[color:var(--prompteero-dark)]',
+                    pathname === '/admin' ? 'bg-[color:var(--prompteero-blue)] !text-white' : 'hover:bg-slate-100'
+                  )}
+                >
+                  {t('nav.admin')}
+                </Link>
+              ) : null}
               <div className="max-w-[220px] truncate rounded-lg border border-[color:var(--prompteero-light)] bg-slate-50 px-2 py-1 text-xs text-[color:var(--prompteero-mid)]">
                 {userLabel}
               </div>
@@ -148,6 +158,11 @@ export function SiteHeader() {
                 <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
                   {t('nav.dashboard')}
                 </Link>
+                {isAdmin ? (
+                  <Link href="/admin" onClick={() => setMobileOpen(false)} className="block rounded-lg px-2 py-2 text-sm hover:bg-slate-100">
+                    {t('nav.admin')}
+                  </Link>
+                ) : null}
                 <button
                   onClick={async () => {
                     await signOut();

@@ -4,22 +4,26 @@ import {useMemo, useState} from 'react';
 import {DndContext, DragEndEvent, PointerSensor, useSensor, useSensors} from '@dnd-kit/core';
 import {arrayMove, SortableContext, useSortable, verticalListSortingStrategy} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
-import {CheckCircle2, GripVertical} from 'lucide-react';
+import {Copy, Download, GripVertical, Save, Wrench} from 'lucide-react';
 import JSZip from 'jszip';
 import {useTranslations} from 'next-intl';
 import toolsSeed from '@/data/tools.json';
+import {BuilderShell} from '@/components/builder/BuilderShell';
+import {BuilderStepper} from '@/components/builder/BuilderStepper';
+import {EmptyState} from '@/components/builder/EmptyState';
+import {PreviewPanel} from '@/components/builder/PreviewPanel';
+import {agentBuilderConfig} from '@/components/builder/configs';
+import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
-import {Badge} from '@/components/ui/badge';
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
+import {StepHelp} from '@/components/ui/step-help';
+import {toast} from '@/components/ui/toast';
 import {tPlural} from '@/i18n/helpers';
 import {agentSpecSchema} from '@/lib/schemas';
-import {downloadBlob, slugify} from '@/lib/utils';
 import {readLocal, storageKeys, writeLocal} from '@/lib/storage';
-import {toast} from 'sonner';
-import {StepHelp} from '@/components/ui/step-help';
+import {downloadBlob, slugify} from '@/lib/utils';
 
 type AgentStep = {id: string; step: string; doneCriteria: string};
 
@@ -53,10 +57,11 @@ function SortableStep({
   const style = {transform: CSS.Transform.toString(transform), transition};
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-xl border border-slate-200 bg-white p-3">
+    <div ref={setNodeRef} style={style} className="rounded-2xl border border-slate-200 bg-white p-3">
       <div className="mb-2 flex items-center justify-between">
         <button
-          className="cursor-grab rounded p-1 text-slate-500 hover:bg-slate-100"
+          type="button"
+          className="cursor-grab rounded-lg p-1 text-slate-500 hover:bg-slate-100"
           {...attributes}
           {...listeners}
           aria-label={dragLabel}
@@ -64,19 +69,28 @@ function SortableStep({
         >
           <GripVertical className="h-4 w-4" />
         </button>
-        <Button variant="ghost" size="sm" onClick={() => onRemove(step.id)} aria-label={removeLabel}>
+        <Button variant="ghost" size="sm" onClick={() => onRemove(step.id)}>
           {removeLabel}
         </Button>
       </div>
-      <Input value={step.step} onChange={(e) => onChange(step.id, 'step', e.target.value)} placeholder={stepPlaceholder} />
+      <Input value={step.step} onChange={(event) => onChange(step.id, 'step', event.target.value)} placeholder={stepPlaceholder} />
       <Input
         value={step.doneCriteria}
-        onChange={(e) => onChange(step.id, 'doneCriteria', e.target.value)}
+        onChange={(event) => onChange(step.id, 'doneCriteria', event.target.value)}
         placeholder={donePlaceholder}
         className="mt-2"
       />
     </div>
   );
+}
+
+function buildBundleEntries(attachedSkills: AttachedSkill[], t: ReturnType<typeof useTranslations>) {
+  return [
+    'AGENTS.md',
+    'agent.json',
+    ...attachedSkills.map((skill) => `skills/${slugify(skill.name) || 'skill'}/SKILL.md`),
+    t('agentBuilder.bundleSummaryFooter', {count: attachedSkills.length}),
+  ];
 }
 
 export function AgentBuilderPage() {
@@ -107,6 +121,7 @@ export function AgentBuilderPage() {
   const onDragEnd = (event: DragEndEvent) => {
     const {active, over} = event;
     if (!over || active.id === over.id) return;
+
     setSteps((prev) => {
       const oldIndex = prev.findIndex((item) => item.id === active.id);
       const newIndex = prev.findIndex((item) => item.id === over.id);
@@ -116,16 +131,27 @@ export function AgentBuilderPage() {
 
   const attachedSkills = availableSkills.filter((skill) => attachedSkillIds.includes(skill.id));
   const hasMinimumFields = title.trim().length > 0 && role.trim().length > 0 && objective.trim().length > 0;
-  const stepsMeta = [
-    {id: 'step-identity', title: t('agentBuilder.agentTitle'), complete: title.trim().length > 0 && role.trim().length > 0},
-    {id: 'step-objective', title: t('agentBuilder.objective'), complete: objective.trim().length > 0},
-    {id: 'step-inputs', title: t('agentBuilder.inputs'), complete: inputs.some((item) => item.trim().length > 0)},
-    {id: 'step-steps', title: t('agentBuilder.steps'), complete: steps.some((item) => item.step.trim().length > 0 && item.doneCriteria.trim().length > 0)},
-    {id: 'step-tools', title: t('agentBuilder.tools'), complete: tools.length > 0},
-    {id: 'step-policies', title: t('agentBuilder.policies'), complete: policies.some((item) => item.trim().length > 0)},
-    {id: 'step-output', title: t('agentBuilder.outputContract'), complete: outputContract.trim().length > 0},
-    {id: 'step-skills', title: t('agentBuilder.attachSkills'), complete: true},
-  ];
+
+  const stepStatus = agentBuilderConfig.steps.map((config) => ({
+    id: config.id,
+    title: t(config.titleKey),
+    complete:
+      config.id === 'step-identity'
+        ? title.trim().length > 0 && role.trim().length > 0
+        : config.id === 'step-objective'
+          ? objective.trim().length > 0
+          : config.id === 'step-inputs'
+            ? inputs.some((item) => item.trim().length > 0)
+            : config.id === 'step-steps'
+              ? steps.some((item) => item.step.trim().length > 0 && item.doneCriteria.trim().length > 0)
+              : config.id === 'step-tools'
+                ? tools.length > 0
+                : config.id === 'step-policies'
+                  ? policies.some((item) => item.trim().length > 0)
+                  : config.id === 'step-output'
+                    ? outputContract.trim().length > 0
+                    : true,
+  }));
 
   const agentPrompt = useMemo(() => {
     const selectedTools = (toolsSeed as Array<any>)
@@ -148,12 +174,12 @@ export function AgentBuilderPage() {
     return [
       `# ${title || t('agentBuilder.untitled')}`,
       `## ${t('agentBuilder.whatDoes')}\n${objective}`,
-      `## ${t('agentBuilder.expectedInputs')}\n${inputs.filter(Boolean).map((value) => `- ${value}`).join('\n')}`,
-      `## ${t('agentBuilder.steps')}\n${steps.map((step, index) => `${index + 1}. ${step.step} (${t('agentBuilder.done')}: ${step.doneCriteria})`).join('\n')}`,
+      `## ${t('agentBuilder.expectedInputs')}\n${inputs.filter(Boolean).map((value) => `- ${value}`).join('\n') || '-'}`,
+      `## ${t('agentBuilder.steps')}\n${steps.map((step, index) => `${index + 1}. ${step.step} (${t('agentBuilder.done')}: ${step.doneCriteria})`).join('\n') || '-'}`,
       `## ${t('agentBuilder.selectedTools')}\n${(toolsSeed as Array<any>)
         .filter((tool) => tools.includes(tool.id))
         .map((tool) => `- ${t(tool.nameKey)} (${t(tool.descriptionKey)})`)
-        .join('\n')}`,
+        .join('\n') || '-'}`,
       `## ${t('agentBuilder.outputContract')}\n${outputContract}`,
       `## ${t('agentBuilder.howToUse')}\n1. ${t('agentBuilder.howToUse1')}\n2. ${t('agentBuilder.howToUse2')}\n3. ${t('agentBuilder.howToUse3')}`,
     ].join('\n\n');
@@ -172,11 +198,13 @@ export function AgentBuilderPage() {
       outputContract,
       attachedSkills,
     };
+
     const parsed = agentSpecSchema.safeParse(payload);
     if (!parsed.success) {
       toast.error(t('agentBuilder.invalid'));
       return;
     }
+
     writeLocal(storageKeys.agents, parsed.data);
     toast.success(t('agentBuilder.saved'));
   };
@@ -208,7 +236,7 @@ export function AgentBuilderPage() {
     const skillsFolder = zip.folder('skills');
     attachedSkills.forEach((skill) => {
       skillsFolder?.file(
-        `${slugify(skill.name)}/SKILL.md`,
+        `${slugify(skill.name) || 'skill'}/SKILL.md`,
         `---\nname: "${skill.name}"\ndescription: "${skill.description}"\ntags: [${skill.tags.map((tag) => `"${tag}"`).join(', ')}]\nversion: "0.1"\nlanguage: "${skill.language}"\n---\n\n${skill.markdown}`
       );
     });
@@ -218,313 +246,356 @@ export function AgentBuilderPage() {
     toast.success(t('actions.exported'));
   };
 
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('agentBuilder.title')}</CardTitle>
-          <CardDescription>{t('agentBuilder.subtitle')}</CardDescription>
+  const exportPromptTxt = () => {
+    downloadBlob(`${slugify(title || 'agent')}.txt`, agentPrompt, 'text/plain');
+    toast.success(t('actions.exported'));
+  };
+
+  const exportAgentsMd = () => {
+    downloadBlob(`${slugify(title || 'agent')}.md`, agentsMd, 'text/markdown');
+    toast.success(t('actions.exported'));
+  };
+
+  const copyPrompt = async () => {
+    await navigator.clipboard.writeText(agentPrompt);
+    toast.success(t('actions.copied'));
+  };
+
+  const scrollToStep = (stepId: string) => {
+    document.getElementById(stepId)?.scrollIntoView({behavior: 'smooth', block: 'start'});
+  };
+
+  const sidebar = (
+    <>
+      <BuilderStepper
+        title={t('agentBuilder.stepsTitle')}
+        description={t('agentBuilder.stepsDescription')}
+        steps={stepStatus}
+        onStepSelect={scrollToStep}
+      />
+      <Card className="builder-panel">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">{t('agentBuilder.summaryTitle')}</CardTitle>
+          <CardDescription>{t('agentBuilder.summaryDescription')}</CardDescription>
         </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{tPlural(t, 'agentBuilder.stepsCount', steps.length)}</Badge>
+          <Badge variant="secondary">{tPlural(t, 'agentBuilder.toolsCount', tools.length)}</Badge>
+          <Badge variant="secondary">{title.trim() || t('agentBuilder.agentTitle')}</Badge>
+        </CardContent>
       </Card>
+    </>
+  );
 
-      {/* Sticky Toolbar */}
-      <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-bold text-slate-800">{title || t('agentBuilder.agentTitle')}</span>
-            <Badge variant="outline">{tPlural(t, 'agentBuilder.stepsCount', steps.length)}</Badge>
-            <Badge variant="outline">{tPlural(t, 'agentBuilder.toolsCount', tools.length)}</Badge>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={saveLocal} disabled={!hasMinimumFields}>
-              {t('actions.saveDraft')}
-            </Button>
-            <Button onClick={exportBundle} disabled={!hasMinimumFields}>
-              {t('agentBuilder.exportBundle')}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-        {/* Left Column: Vertical Steps */}
-          <div className="space-y-6 pb-20">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">{t('agentBuilder.stepsTitle')}</CardTitle>
-              <CardDescription>{t('agentBuilder.stepsDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {stepsMeta.map((step, index) => (
-                  <a
-                    key={step.id}
-                    href={`#${step.id}`}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm transition-colors hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--prompteero-blue)]"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
-                        {index + 1}
-                      </span>
-                      <span className="font-medium text-slate-800">{step.title}</span>
-                    </span>
-                    {step.complete ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <span className="text-xs text-slate-400">{t('promptBuilder.pending')}</span>}
-                  </a>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Step 1: Identity */}
-          <div id="step-identity" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">1</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.agentTitle')}</h3>
+  const editor = (
+    <div className="space-y-4 pb-12">
+      <section id="step-identity" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.agentTitle')}</CardTitle>
               <StepHelp tooltip={t('help.agent.identity')} />
             </div>
-            <Card glow>
-              <CardContent className="grid gap-3 pt-6 md:grid-cols-2">
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('agentBuilder.agentTitle')} />
-                <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t('agentBuilder.agentRole')} />
-              </CardContent>
-            </Card>
-          </div>
+            <CardDescription>{t('agentBuilder.identityDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t('agentBuilder.agentTitle')} />
+            <Input value={role} onChange={(event) => setRole(event.target.value)} placeholder={t('agentBuilder.agentRole')} />
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Step 2: Objective */}
-          <div id="step-objective" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">2</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.objective')}</h3>
+      <section id="step-objective" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.objective')}</CardTitle>
               <StepHelp tooltip={t('help.agent.objective')} />
             </div>
-            <Card glow>
-              <CardContent className="pt-6">
-                <Textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={t('agentBuilder.objective')} className="min-h-[120px]" />
-              </CardContent>
-            </Card>
-          </div>
+            <CardDescription>{t('agentBuilder.objectiveDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={t('agentBuilder.objective')} className="min-h-[140px]" />
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Step 3: Inputs */}
-          <div id="step-inputs" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">3</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.inputs')}</h3>
+      <section id="step-inputs" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.inputs')}</CardTitle>
               <StepHelp tooltip={t('help.agent.inputs')} />
             </div>
-            <Card glow>
-              <CardContent className="space-y-2 pt-6">
-                {inputs.map((input, index) => (
-                  <Input
-                    key={index}
-                    value={input}
-                    onChange={(e) => setInputs((prev) => prev.map((item, idx) => (idx === index ? e.target.value : item)))}
-                    placeholder={`${t('agentBuilder.input')} ${index + 1}`}
-                  />
-                ))}
-                <Button variant="outline" onClick={() => setInputs((prev) => [...prev, ''])}>
-                  {t('actions.add')}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+            <CardDescription>{t('agentBuilder.inputsDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {inputs.map((input, index) => (
+              <Input
+                key={index}
+                value={input}
+                onChange={(event) => setInputs((prev) => prev.map((item, idx) => (idx === index ? event.target.value : item)))}
+                placeholder={`${t('agentBuilder.input')} ${index + 1}`}
+              />
+            ))}
+            <Button variant="outline" onClick={() => setInputs((prev) => [...prev, ''])}>
+              {t('actions.add')}
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Step 4: Steps */}
-          <div id="step-steps" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">4</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.steps')}</h3>
+      <section id="step-steps" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.steps')}</CardTitle>
               <StepHelp tooltip={t('help.agent.steps')} />
             </div>
-            <Card glow>
-              <CardContent className="pt-6">
-                <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-                  <SortableContext items={steps.map((step) => step.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">
-                      {steps.map((step) => (
-                        <SortableStep
-                          key={step.id}
-                          step={step}
-                          dragLabel={t('common.reorder')}
-                          stepPlaceholder={t('agentBuilder.stepPlaceholder')}
-                          donePlaceholder={t('agentBuilder.doneCriteriaPlaceholder')}
-                          removeLabel={t('actions.remove')}
-                          onChange={(id, field, value) =>
-                            setSteps((prev) => prev.map((item) => (item.id === id ? {...item, [field]: value} : item)))
-                          }
-                          onRemove={(id) => setSteps((prev) => prev.filter((item) => item.id !== id))}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-                <Button className="mt-3" variant="outline" onClick={() => setSteps((prev) => [...prev, {id: crypto.randomUUID(), step: '', doneCriteria: ''}])}>
-                  {t('actions.addStep')}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+            <CardDescription>{t('agentBuilder.stepsEditorDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+              <SortableContext items={steps.map((step) => step.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {steps.map((step) => (
+                    <SortableStep
+                      key={step.id}
+                      step={step}
+                      dragLabel={t('common.reorder')}
+                      stepPlaceholder={t('agentBuilder.stepPlaceholder')}
+                      donePlaceholder={t('agentBuilder.doneCriteriaPlaceholder')}
+                      removeLabel={t('actions.remove')}
+                      onChange={(id, field, value) => setSteps((prev) => prev.map((item) => (item.id === id ? {...item, [field]: value} : item)))}
+                      onRemove={(id) => setSteps((prev) => prev.filter((item) => item.id !== id))}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            <Button className="mt-3" variant="outline" onClick={() => setSteps((prev) => [...prev, {id: crypto.randomUUID(), step: '', doneCriteria: ''}])}>
+              {t('actions.addStep')}
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Step 5: Tools */}
-          <div id="step-tools" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">5</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.tools')}</h3>
+      <section id="step-tools" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.toolsMetadata')}</CardTitle>
               <StepHelp tooltip={t('help.agent.tools')} />
             </div>
-            <Card glow>
-              <CardContent className="grid gap-2 pt-6 md:grid-cols-2">
-                {(toolsSeed as Array<any>).map((tool) => (
-                  <button
-                    key={tool.id}
-                    onClick={() => toggleTool(tool.id)}
-                    className={`rounded-xl border p-3 text-left transition-all ${tools.includes(tool.id) ? 'border-blue-300 bg-blue-50/50 ring-1 ring-blue-300' : 'border-slate-200 bg-white hover:border-blue-200'}`}
-                  >
-                    <p className="text-sm font-semibold text-slate-900">{t(tool.nameKey)}</p>
-                    <p className="text-xs text-slate-500">{t(tool.descriptionKey)}</p>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
+            <CardDescription>{t('agentBuilder.toolsDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 md:grid-cols-2">
+            {(toolsSeed as Array<any>).map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => toggleTool(tool.id)}
+                className={`rounded-2xl border p-3 text-left transition-all ${
+                  tools.includes(tool.id) ? 'border-blue-300 bg-blue-50/50 ring-1 ring-blue-300' : 'border-slate-200 bg-white hover:border-blue-200'
+                }`}
+              >
+                <p className="text-sm font-semibold text-slate-900">{t(tool.nameKey)}</p>
+                <p className="mt-1 text-xs text-slate-500">{t(tool.descriptionKey)}</p>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Step 6: Policies */}
-          <div id="step-policies" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">6</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.policies')}</h3>
+      <section id="step-policies" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.policies')}</CardTitle>
               <StepHelp tooltip={t('help.agent.policies')} />
             </div>
-            <Card glow>
-              <CardContent className="space-y-2 pt-6">
-                {policies.map((policy, index) => (
-                  <Input
-                    key={index}
-                    value={policy}
-                    onChange={(e) => setPolicies((prev) => prev.map((item, idx) => (idx === index ? e.target.value : item)))}
-                  />
-                ))}
-                <Button variant="outline" onClick={() => setPolicies((prev) => [...prev, ''])}>
-                  {t('actions.add')}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+            <CardDescription>{t('agentBuilder.policiesDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {policies.map((policy, index) => (
+              <Input key={index} value={policy} onChange={(event) => setPolicies((prev) => prev.map((item, idx) => (idx === index ? event.target.value : item)))} />
+            ))}
+            <Button variant="outline" onClick={() => setPolicies((prev) => [...prev, ''])}>
+              {t('actions.add')}
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Step 7: Output Contract */}
-          <div id="step-output" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">7</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.outputContract')}</h3>
+      <section id="step-output" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.outputContract')}</CardTitle>
               <StepHelp tooltip={t('help.agent.outputContract')} />
             </div>
-            <Card glow>
-              <CardContent className="pt-6">
-                <Textarea value={outputContract} onChange={(e) => setOutputContract(e.target.value)} placeholder={t('agentBuilder.outputContract')} className="min-h-[120px]" />
-              </CardContent>
-            </Card>
-          </div>
+            <CardDescription>{t('agentBuilder.outputDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea value={outputContract} onChange={(event) => setOutputContract(event.target.value)} placeholder={t('agentBuilder.outputContract')} className="min-h-[140px]" />
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Step 8: Attach Skills */}
-          <div id="step-skills" className="scroll-mt-24 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">8</div>
-              <h3 className="text-lg font-bold text-slate-800">{t('agentBuilder.attachSkills')}</h3>
+      <section id="step-skills" className="scroll-mt-24">
+        <Card glow className="builder-panel">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{t('agentBuilder.attachSkills')}</CardTitle>
               <StepHelp tooltip={t('help.agent.attachSkills')} />
             </div>
-            <Card glow>
-              <CardContent className="space-y-2 pt-6">
-                {availableSkills.length === 0 ? (
-                  <div className="flex h-20 items-center justify-center rounded-xl border border-dashed text-sm text-slate-400">
-                    {t('agentBuilder.noSkills')}
-                  </div>
-                ) : (
-                  availableSkills.map((skill) => (
+            <CardDescription>{t('agentBuilder.skillsDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {availableSkills.length === 0 ? (
+              <EmptyState icon={Wrench} title={t('agentBuilder.noSkillsTitle')} description={t('agentBuilder.noSkills')} secondaryCTA={{label: t('nav.skillBuilder'), href: '/skill-builder'}} />
+            ) : (
+              <div className="space-y-3">
+                <div className="grid gap-2 md:grid-cols-2">
+                  {availableSkills.map((skill) => (
                     <button
                       key={skill.id}
+                      type="button"
                       onClick={() => toggleSkill(skill.id)}
-                      className={`w-full rounded-xl border p-3 text-left transition-all ${attachedSkillIds.includes(skill.id) ? 'border-blue-300 bg-blue-50/50 ring-1 ring-blue-300' : 'border-slate-200 bg-white hover:border-blue-200'}`}
+                      className={`w-full rounded-2xl border p-3 text-left transition-all ${
+                        attachedSkillIds.includes(skill.id) ? 'border-blue-300 bg-blue-50/50 ring-1 ring-blue-300' : 'border-slate-200 bg-white hover:border-blue-200'
+                      }`}
                     >
                       <p className="text-sm font-semibold text-slate-900">{skill.name}</p>
-                      <p className="text-xs text-slate-500">{skill.description}</p>
+                      <p className="mt-1 text-xs text-slate-500">{skill.description}</p>
                     </button>
-                  ))
-                )}
-                {attachedSkills.length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-2">
+                  ))}
+                </div>
+                {attachedSkills.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
                     {attachedSkills.map((skill) => (
-                      <Badge key={skill.id} variant="secondary">{skill.name}</Badge>
+                      <Badge key={skill.id} variant="secondary">
+                        {skill.name}
+                      </Badge>
                     ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Right Column: Sticky Preview */}
-        <div className="hidden lg:block">
-          <div className="sticky top-[140px] space-y-4">
-            <Card glow className="border-blue-100 bg-white shadow-lg">
-              <CardHeader className="bg-slate-50/50 pb-3">
-                <CardTitle className="text-sm">{t('agentBuilder.agentPrompt')}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <pre className="max-h-[300px] overflow-y-auto whitespace-pre-wrap p-4 text-xs text-slate-700">
-                  {agentPrompt}
-                </pre>
-              </CardContent>
-            </Card>
-
-            <Card glow className="border-blue-100 bg-white shadow-lg">
-              <CardHeader className="bg-slate-50/50 pb-3">
-                <CardTitle className="text-sm">AGENTS.md</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <pre className="max-h-[250px] overflow-y-auto whitespace-pre-wrap p-4 text-xs text-slate-700">
-                  {agentsMd}
-                </pre>
-              </CardContent>
-              <div className="flex gap-2 border-t border-slate-100 p-3">
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  disabled={!hasMinimumFields}
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(agentPrompt);
-                    toast.success(t('actions.copied'));
-                  }}
-                >
-                  {t('agentBuilder.copyPrompt')}
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex-1" disabled={!hasMinimumFields}>
-                      {t('actions.export')}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onSelect={async () => {
-                        await navigator.clipboard.writeText(agentsMd);
-                        toast.success(t('actions.copied'));
-                      }}
-                    >
-                      {t('agentBuilder.copyAgentsMd')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        void exportBundle();
-                      }}
-                    >
-                      {t('agentBuilder.exportBundle')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                ) : null}
               </div>
-            </Card>
-          </div>
-        </div>
-      </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </div>
+  );
+
+  const preview = (
+    <PreviewPanel
+      title={t('builderShell.previewTitle')}
+      description={t('agentBuilder.previewDescription')}
+      actions={[
+        {
+          id: 'copy',
+          label: t('agentBuilder.copyPrompt'),
+          onClick: () => {
+            void copyPrompt();
+          },
+          disabled: !hasMinimumFields,
+          variant: 'outline',
+          icon: <Copy className="h-4 w-4" />,
+        },
+        {
+          id: 'export',
+          label: t('actions.export'),
+          disabled: !hasMinimumFields,
+          icon: <Download className="h-4 w-4" />,
+          exportItems: [
+            {id: 'txt', label: t('actions.exportTxt'), onSelect: exportPromptTxt, disabled: !hasMinimumFields},
+            {id: 'md', label: t('actions.exportMd'), onSelect: exportAgentsMd, disabled: !hasMinimumFields},
+            {id: 'zip', label: t('agentBuilder.exportBundle'), onSelect: () => void exportBundle(), disabled: !hasMinimumFields},
+          ],
+        },
+      ]}
+      tabs={[
+        {
+          id: 'text',
+          label: t('builderShell.tabs.text'),
+          content: (
+            <pre className="max-h-[520px] overflow-y-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
+              {agentPrompt}
+            </pre>
+          ),
+        },
+        {
+          id: 'markdown',
+          label: t('builderShell.tabs.markdown'),
+          content: (
+            <pre className="max-h-[520px] overflow-y-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
+              {agentsMd}
+            </pre>
+          ),
+        },
+        {
+          id: 'bundle',
+          label: t('builderShell.tabs.bundle'),
+          content: (
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              <p className="font-semibold text-slate-900">{t('agentBuilder.bundleInfoTitle')}</p>
+              <ul className="space-y-2">
+                {buildBundleEntries(attachedSkills, t).map((entry) => (
+                  <li key={entry} className="rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">
+                    {entry}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ),
+        },
+      ]}
+    />
+  );
+
+  return (
+    <BuilderShell
+      title={t('agentBuilder.title')}
+      subtitle={t('agentBuilder.subtitle')}
+      counters={[
+        {label: t('agentBuilder.stepsCounterLabel'), value: tPlural(t, 'agentBuilder.stepsCount', steps.length)},
+        {label: t('agentBuilder.toolsCounterLabel'), value: tPlural(t, 'agentBuilder.toolsCount', tools.length)},
+      ]}
+      actions={[
+        {
+          id: 'save',
+          label: t('actions.saveDraft'),
+          onClick: saveLocal,
+          disabled: !hasMinimumFields,
+          variant: 'outline',
+          icon: <Save className="h-4 w-4" />,
+        },
+        {
+          id: 'copy',
+          label: t('agentBuilder.copyPrompt'),
+          onClick: () => {
+            void copyPrompt();
+          },
+          disabled: !hasMinimumFields,
+          variant: 'outline',
+          icon: <Copy className="h-4 w-4" />,
+        },
+        {
+          id: 'export',
+          label: t('actions.export'),
+          disabled: !hasMinimumFields,
+          icon: <Download className="h-4 w-4" />,
+          exportItems: [
+            {id: 'txt', label: t('actions.exportTxt'), onSelect: exportPromptTxt, disabled: !hasMinimumFields},
+            {id: 'md', label: t('actions.exportMd'), onSelect: exportAgentsMd, disabled: !hasMinimumFields},
+            {id: 'zip', label: t('agentBuilder.exportBundle'), onSelect: () => void exportBundle(), disabled: !hasMinimumFields},
+          ],
+        },
+      ]}
+      sidebar={sidebar}
+      editor={editor}
+      preview={preview}
+    />
   );
 }

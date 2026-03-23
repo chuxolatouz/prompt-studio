@@ -1,13 +1,20 @@
 import type {Metadata} from 'next';
 import {NextIntlClientProvider} from 'next-intl';
-import {getLocale, getMessages} from 'next-intl/server';
-import {SiteHeader} from '@/components/layout/site-header';
+import {cookies, headers} from 'next/headers';
 import {Providers} from '@/components/layout/providers';
+import {isAppLocale} from '@/i18n/routing';
+import {getBaseUrl, seoCopy, siteName} from '@/lib/site';
+import esMessages from '@/i18n/es.json';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'prompteero',
-  description: 'prompteero convierte ideas en prompts claros, utiles y listos para usar.',
+  metadataBase: getBaseUrl(),
+  applicationName: siteName,
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`,
+  },
+  description: seoCopy.es.defaultDescription,
   icons: {
     icon: [
       {url: '/brand/favicon-16.png', sizes: '16x16', type: 'image/png'},
@@ -15,7 +22,16 @@ export const metadata: Metadata = {
     ],
     apple: '/brand/apple-touch-icon.png',
   },
-  manifest: '/site.webmanifest',
+  manifest: '/manifest.webmanifest',
+  openGraph: {
+    siteName,
+    type: 'website',
+    images: [{url: '/opengraph-image', width: 1200, height: 630, alt: siteName}],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/opengraph-image'],
+  },
 };
 
 export default async function RootLayout({
@@ -23,17 +39,15 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getLocale();
-  const messages = await getMessages();
+  const headerLocale = (await headers()).get('X-NEXT-INTL-LOCALE');
+  const cookieLocale = (await cookies()).get('NEXT_LOCALE')?.value;
+  const htmlLocale = isAppLocale(headerLocale) ? headerLocale : isAppLocale(cookieLocale) ? cookieLocale : 'es';
 
   return (
-    <html lang={locale}>
+    <html lang={htmlLocale}>
       <body className="bg-slate-50 text-[color:var(--prompteero-dark)] antialiased">
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers>
-            <SiteHeader />
-            <main className="mx-auto min-h-[calc(100vh-44px)] w-full max-w-7xl px-4 py-6">{children}</main>
-          </Providers>
+        <NextIntlClientProvider locale="es" messages={esMessages}>
+          <Providers>{children}</Providers>
         </NextIntlClientProvider>
       </body>
     </html>

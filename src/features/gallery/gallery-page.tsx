@@ -1,20 +1,21 @@
 'use client';
 
-import Link from 'next/link';
 import {useEffect, useMemo, useState} from 'react';
 import {Heart, SlidersHorizontal, Sparkles} from 'lucide-react';
 import {useTranslations} from 'next-intl';
-import {usePathname, useRouter, useSearchParams} from 'next/navigation';
+import {useSearchParams} from 'next/navigation';
+import {EmptyState} from '@/components/builder/EmptyState';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import {toast} from '@/components/ui/toast';
 import {AuthGateModal} from '@/features/common/auth-gate-modal';
 import {useAuth} from '@/features/common/auth-context';
+import {Link, usePathname, useRouter} from '@/i18n/navigation';
 import {featureFlags} from '@/lib/feature-flags';
 import {getSupabaseBrowserClient} from '@/lib/supabase';
-import {toast} from 'sonner';
 
 type PromptRow = {
   id: string;
@@ -235,7 +236,7 @@ export function GalleryPage() {
       <AuthGateModal
         open={authGateOpen}
         onOpenChange={setAuthGateOpen}
-        returnTo={pendingFavoriteId ? `/gallery?action=favorite&promptId=${pendingFavoriteId}` : '/gallery'}
+        returnTo={pendingFavoriteId ? `/prompts?action=favorite&promptId=${pendingFavoriteId}` : '/prompts'}
         action="favorite"
         intent="favorite"
       />
@@ -296,20 +297,13 @@ export function GalleryPage() {
               <CardContent className="pt-4 text-sm text-slate-600">{t('common.loading')}</CardContent>
             </Card>
           ) : filtered.length === 0 ? (
-            <Card>
-              <CardContent className="space-y-3 pt-4 text-sm text-slate-600">
-                <p className="text-base font-semibold text-slate-900">{t('gallery.emptyTitle')}</p>
-                <p>{t('gallery.empty')}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild>
-                    <Link href="/prompt-builder">{t('gallery.emptyCta')}</Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/structures">{t('gallery.secondaryEmptyCta')}</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Sparkles}
+              title={t('gallery.emptyTitle')}
+              description={t('gallery.empty')}
+              primaryCTA={{label: t('gallery.emptyCta'), href: '/prompt-builder'}}
+              secondaryCTA={{label: t('gallery.secondaryEmptyCta'), href: '/structures'}}
+            />
           ) : (
             filtered.map((item) => {
               const macro = item.builder_state?.macro || item.structure;

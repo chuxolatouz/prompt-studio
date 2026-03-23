@@ -1,5 +1,5 @@
-import Link from 'next/link';
-import {getTranslations} from 'next-intl/server';
+import type {Metadata} from 'next';
+import {getLocale, getTranslations} from 'next-intl/server';
 import {Bot, BrainCircuit, Heart, Puzzle, Sparkles, TextCursorInput, UserRoundPlus, WandSparkles} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Logo} from '@/components/layout/logo';
@@ -7,13 +7,28 @@ import {Badge} from '@/components/ui/badge';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {ParticleField} from '@/components/ui/particle-field';
 import {ShowWhenLoggedOut} from '@/features/common/show-when-logged-out';
+import {Link} from '@/i18n/navigation';
+import type {AppLocale} from '@/i18n/routing';
 import {buildAuthHref} from '@/lib/auth';
+import {buildMetadata} from '@/lib/seo';
+import {seoCopy} from '@/lib/site';
 
 const cards = [
   {icon: TextCursorInput, key: 'landing.prompt', href: '/prompt-builder'},
   {icon: Puzzle, key: 'landing.skill', href: '/skill-builder'},
   {icon: Bot, key: 'landing.agent', href: '/agent-builder'},
 ];
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = (await getLocale()) as AppLocale;
+
+  return buildMetadata({
+    locale,
+    pathname: '/',
+    title: seoCopy[locale].homeTitle,
+    description: seoCopy[locale].homeDescription,
+  });
+}
 
 export default async function Home() {
   const t = await getTranslations();
@@ -28,10 +43,10 @@ export default async function Home() {
           <p className="mt-3 max-w-3xl text-lg leading-relaxed text-slate-700">{t('landing.subtitle')}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild>
-              <Link href="/builders">{t('landing.ctaBuilders')}</Link>
+              <Link href="/prompt-builder">{t('landing.ctaPrompt')}</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/gallery">{t('landing.ctaGallery')}</Link>
+              <Link href="/prompts">{t('landing.ctaGallery')}</Link>
             </Button>
           </div>
         </div>
@@ -89,10 +104,7 @@ export default async function Home() {
                   <p className="text-sm font-semibold text-slate-900">{t('landing.account.saveTitle')}</p>
                   <p className="mt-1 text-xs text-slate-600">{t('landing.account.saveDescription')}</p>
                 </Link>
-                <Link
-                  href={buildAuthHref('login', {next: '/gallery', intent: 'favorite'})}
-                  className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30"
-                >
+                <Link href={buildAuthHref('login', {next: '/prompts', intent: 'favorite'})} className="rounded-xl border border-slate-200 bg-white p-3 transition hover:border-blue-200 hover:bg-blue-50/30">
                   <p className="flex items-center gap-1 text-sm font-semibold text-slate-900">
                     <Heart className="h-4 w-4 text-[color:var(--prompteero-blue)]" />
                     {t('landing.account.likeTitle')}

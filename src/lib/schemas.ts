@@ -6,7 +6,7 @@ export const blockSchema = z.object({
   content: z.string(),
   sourceId: z.string().optional(),
   niche: z.string().optional(),
-  level: z.enum(['basic', 'intermediate']).default('basic'),
+  level: z.enum(['basic', 'intermediate', 'advanced']).default('basic'),
   tags: z.array(z.string()).default([]),
 });
 
@@ -100,3 +100,87 @@ export const promptRecordSchema = z.object({
 });
 
 export type PromptRecord = z.infer<typeof promptRecordSchema>;
+
+export const localizedTextSchema = z.object({
+  es: z.string().default(''),
+  en: z.string().default(''),
+});
+
+export const promptCatalogLevelSchema = z.enum(['basic', 'intermediate', 'advanced']);
+
+export const promptStructureRecordSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  localizedLabel: localizedTextSchema,
+  whatIs: z.string(),
+  localizedWhatIs: localizedTextSchema,
+  whenToUse: z.array(z.string()).default([]),
+  localizedWhenToUse: z.object({
+    es: z.array(z.string()).default([]),
+    en: z.array(z.string()).default([]),
+  }),
+  template: z.string(),
+  localizedTemplate: localizedTextSchema,
+  example: z.string(),
+  localizedExample: localizedTextSchema,
+  sections: z.array(z.string()).default([]),
+  columnOrder: z.array(z.string()).default([]),
+  sortOrder: z.number().int().default(0),
+  isActive: z.boolean().default(true),
+});
+
+export type PromptStructureRecord = z.infer<typeof promptStructureRecordSchema>;
+
+export const promptRoleRecordSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  localizedLabel: localizedTextSchema,
+  icon: z.string().default('Sparkles'),
+  description: z.string().default(''),
+  localizedDescription: localizedTextSchema,
+  sortOrder: z.number().int().default(0),
+  isActive: z.boolean().default(true),
+});
+
+export type PromptRoleRecord = z.infer<typeof promptRoleRecordSchema>;
+
+export const promptPaletteBlockRecordSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  localizedTitle: localizedTextSchema,
+  content: z.string(),
+  localizedContent: localizedTextSchema,
+  niche: z.string(),
+  structure: z.string(),
+  targetColumn: z.string(),
+  level: promptCatalogLevelSchema.default('basic'),
+  tags: z.array(z.string()).default([]),
+  image: z.string().default(''),
+  sortOrder: z.number().int().default(0),
+  isActive: z.boolean().default(true),
+});
+
+export type PromptPaletteBlockRecord = z.infer<typeof promptPaletteBlockRecordSchema>;
+
+export const suggestionCategorySchema = z.enum(['structure', 'role', 'palette', 'general']);
+export const suggestionStatusSchema = z.enum(['open', 'in_review', 'implemented', 'rejected']);
+export const linkedEntityTypeSchema = z.enum(['structure', 'role', 'palette_block']);
+
+export const userSuggestionRecordSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  message: z.string(),
+  category: suggestionCategorySchema,
+  status: suggestionStatusSchema,
+  linkedEntityType: linkedEntityTypeSchema.nullable().optional(),
+  linkedEntityId: z.string().nullable().optional(),
+  createdBy: z.string().nullable().optional(),
+  adminNotes: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type SuggestionCategory = z.infer<typeof suggestionCategorySchema>;
+export type SuggestionStatus = z.infer<typeof suggestionStatusSchema>;
+export type LinkedEntityType = z.infer<typeof linkedEntityTypeSchema>;
+export type UserSuggestionRecord = z.infer<typeof userSuggestionRecordSchema>;

@@ -3,12 +3,13 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {Copy, Heart, GitFork, Flag} from 'lucide-react';
 import {useTranslations} from 'next-intl';
-import {usePathname, useRouter, useSearchParams} from 'next/navigation';
+import {useSearchParams} from 'next/navigation';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Textarea} from '@/components/ui/textarea';
 import {AuthGateModal} from '@/features/common/auth-gate-modal';
 import {useAuth} from '@/features/common/auth-context';
+import {usePathname, useRouter} from '@/i18n/navigation';
 import {featureFlags} from '@/lib/feature-flags';
 import {promptBuilderStateSchema} from '@/lib/schemas';
 import {getSupabaseBrowserClient} from '@/lib/supabase';

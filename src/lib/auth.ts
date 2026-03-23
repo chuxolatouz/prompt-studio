@@ -1,4 +1,5 @@
 import type {AuthError} from '@supabase/supabase-js';
+import {localizePath} from '@/lib/site';
 
 export type AuthIntent = 'publish' | 'favorite' | 'account' | 'save' | 'general';
 export type AuthMode = 'login' | 'register' | 'forgot' | 'recovery';
@@ -73,7 +74,7 @@ export function appendAuthAction(path: string, action: AuthGateAction) {
 
 export function resolveRecoveryRedirectUrl() {
   const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  const recoveryPath = buildAuthHref('recovery', {intent: 'general'});
+  const recoveryPath = localizePath('es', buildAuthHref('recovery', {intent: 'general'}));
 
   if (configuredAppUrl) {
     return `${configuredAppUrl.replace(/\/$/, '')}${recoveryPath}`;

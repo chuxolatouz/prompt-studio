@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import {useTranslations} from 'next-intl';
 import {Button} from '@/components/ui/button';
 import {Modal} from '@/components/ui/modal';
+import {Link} from '@/i18n/navigation';
 import {appendAuthAction, buildAuthHref, type AuthIntent} from '@/lib/auth';
 
 type AuthGateModalProps = {

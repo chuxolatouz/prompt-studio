@@ -2,15 +2,13 @@
 
 import Image from 'next/image';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {usePathname, useRouter, useSearchParams} from 'next/navigation';
+import {useSearchParams} from 'next/navigation';
 import {DndContext, DragEndEvent, DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors} from '@dnd-kit/core';
 import {arrayMove, SortableContext, useSortable, verticalListSortingStrategy} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import {
   ArrowDown,
   ArrowUp,
-  CheckCircle2,
-  ChevronDown,
   Copy,
   Download,
   Gamepad2,
@@ -20,52 +18,29 @@ import {
   Sparkles,
 } from 'lucide-react';
 import JSZip from 'jszip';
-import {useTranslations} from 'next-intl';
-import blocksSeed from '@/data/blocks.json';
-import structuresSeed from '@/data/structures.json';
-import rolesSeed from '@/data/roles.json';
+import {useLocale, useTranslations} from 'next-intl';
+import {BuilderShell} from '@/components/builder/BuilderShell';
+import {BuilderStepper} from '@/components/builder/BuilderStepper';
+import {PreviewPanel} from '@/components/builder/PreviewPanel';
+import {promptBuilderConfig} from '@/components/builder/configs';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {Input} from '@/components/ui/input';
 import {Modal} from '@/components/ui/modal';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Switch} from '@/components/ui/switch';
 import {Textarea} from '@/components/ui/textarea';
 import {StepHelp} from '@/components/ui/step-help';
+import {toast} from '@/components/ui/toast';
 import {AuthGateModal} from '@/features/common/auth-gate-modal';
 import {useAuth} from '@/features/common/auth-context';
-import {promptBuilderDraftSchema, promptBuilderStateSchema, PromptBuilderState} from '@/lib/schemas';
+import {usePromptCatalog} from '@/features/common/use-prompt-catalog';
+import {usePathname, useRouter} from '@/i18n/navigation';
+import {PromptBuilderState, PromptStructureRecord, promptBuilderDraftSchema, promptBuilderStateSchema} from '@/lib/schemas';
 import {storageKeys, readLocal, writeLocal} from '@/lib/storage';
 import {downloadBlob, slugify} from '@/lib/utils';
 import {getSupabaseBrowserClient, supabaseEnabled} from '@/lib/supabase';
-import {toast} from 'sonner';
-
-type SeedBlock = {
-  id: string;
-  titleKey: string;
-  contentKey: string;
-  niche: string;
-  structure: string;
-  level: 'basic' | 'intermediate';
-  tags: string[];
-  image: string;
-  targetColumn: SegmentId;
-};
-
-type StructureMacro = {
-  id: string;
-  titleKey: string;
-  whatIsKey: string;
-  whenToUseKeys: string[];
-  templateKey: string;
-  exampleKey: string;
-  sections: string[];
-  macro: {
-    columnOrder: SegmentId[];
-  };
-};
 
 type BuilderMode = 'pro' | 'quest';
 
@@ -119,8 +94,8 @@ function getStructureSegments(structureId: string, order: SegmentId[]): SegmentI
   return order.filter((segmentId) => configured.includes(segmentId));
 }
 
-function getStructureLabel(structureId: string) {
-  return structureId === 'CARE' ? 'CASE' : structureId;
+function getStructureLabel(structureId: string, structures: PromptStructureRecord[]) {
+  return structures.find((item) => item.id === structureId)?.label || structureId;
 }
 
 function getManualItemId(segmentId: SegmentId) {
@@ -399,7 +374,9 @@ function SegmentOrderItem({
 
 export function PromptBuilderPage() {
   const t = useTranslations();
+  const locale = useLocale() as 'es' | 'en';
   const {user} = useAuth();
+  const {structures, roles, paletteBlocks} = usePromptCatalog(locale);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -447,7 +424,6 @@ export function PromptBuilderPage() {
   const questCelebratedRef = useRef(false);
 
   const sensors = useSensors(useSensor(PointerSensor, {activationConstraint: {distance: 8}}));
-  const structures = structuresSeed as StructureMacro[];
   const currentStructure = useMemo(
     () => structures.find((entry) => entry.id === state.structure) ?? structures[0],
     [structures, state.structure]
@@ -511,13 +487,13 @@ export function PromptBuilderPage() {
         ...prev,
         structure: macroId,
         macro: macroId,
-        segmentOrder: normalizeSegmentOrder(structure.macro.columnOrder, columns),
+        segmentOrder: normalizeSegmentOrder(structure.columnOrder, columns),
         columns,
       };
     });
 
     setMacroModalOpen(false);
-    toast.success(t('promptBuilder.macroAppliedToast', {macro: getStructureLabel(macroId)}));
+    toast.success(t('promptBuilder.macroAppliedToast', {macro: getStructureLabel(macroId, structures)}));
   };
 
   const handleStructureChange = (nextStructure: string) => {
@@ -528,7 +504,7 @@ export function PromptBuilderPage() {
         ...prev,
         structure: nextStructure,
         macro: nextStructure,
-        segmentOrder: structure ? normalizeSegmentOrder(structure.macro.columnOrder, columns) : prev.segmentOrder,
+        segmentOrder: structure ? normalizeSegmentOrder(structure.columnOrder, columns) : prev.segmentOrder,
         columns,
       };
     });
@@ -574,13 +550,17 @@ export function PromptBuilderPage() {
     () => visibleColumns.map((column) => column.id as SegmentId),
     [visibleColumns]
   );
+  const publishSegments = useMemo(
+    () => promptBuilderConfig.requiredForPublish.filter((segmentId) => requiredSegments.includes(segmentId as SegmentId)) as SegmentId[],
+    [requiredSegments]
+  );
   const hasPreviewContent = requiredSegments.some((segmentId) => getSegmentContents(segmentId).length > 0);
-  const missingSegments = requiredSegments.filter((segmentId) => getSegmentContents(segmentId).length === 0);
-  const canPublishByMinimum = missingSegments.length === 0 && requiredSegments.length > 0;
+  const missingSegments = publishSegments.filter((segmentId) => getSegmentContents(segmentId).length === 0);
+  const canPublishByMinimum = missingSegments.length === 0 && publishSegments.length > 0;
   const missingLabels = missingSegments.map((segmentId) => getColumnLabel(t, segmentId, segmentId));
   const missingList = missingLabels.join(', ');
   const firstMissingSegment = missingSegments[0] ?? null;
-  const requiredList = requiredSegments.map((segmentId) => getColumnLabel(t, segmentId, segmentId)).join(', ');
+  const requiredList = publishSegments.map((segmentId) => getColumnLabel(t, segmentId, segmentId)).join(', ');
 
   const publishDisabledReason = canPublishByMinimum
     ? ''
@@ -607,15 +587,15 @@ export function PromptBuilderPage() {
 
   const filteredBlocks = useMemo(() => {
     const selectedNiche = state.niche ?? 'all';
-    return (blocksSeed as SeedBlock[]).filter((block) => {
+    return paletteBlocks.filter((block) => {
       const bySearch =
         search.length === 0 ||
-        t(block.titleKey).toLowerCase().includes(search.toLowerCase()) ||
-        t(block.contentKey).toLowerCase().includes(search.toLowerCase());
+        block.title.toLowerCase().includes(search.toLowerCase()) ||
+        block.content.toLowerCase().includes(search.toLowerCase());
       const byNiche = selectedNiche === 'all' || block.niche.startsWith(selectedNiche);
       return bySearch && byNiche;
     });
-  }, [search, state.niche, t]);
+  }, [paletteBlocks, search, state.niche]);
 
   const composedPrompt = useMemo(() => {
     const lines: string[] = [];
@@ -633,7 +613,7 @@ export function PromptBuilderPage() {
   const macroPreviewOrder = useMemo(() => {
     const structure = structures.find((item) => item.id === selectedMacroId);
     if (!structure) return requiredSegments;
-    const normalized = normalizeSegmentOrder(structure.macro.columnOrder, state.columns);
+    const normalized = normalizeSegmentOrder(structure.columnOrder, state.columns);
     return getStructureSegments(selectedMacroId, normalized);
   }, [selectedMacroId, structures, requiredSegments, state.columns]);
 
@@ -673,13 +653,13 @@ export function PromptBuilderPage() {
     if (active.data.current?.kind === 'palette') {
       const targetColumn = getColumnById(state.columns, overId) ?? getColumnById(state.columns, findItem(state.columns, overId)?.columnId ?? '');
       if (!targetColumn) return;
-      const item = (blocksSeed as SeedBlock[]).find((entry) => `palette-${entry.id}` === activeId);
+      const item = paletteBlocks.find((entry) => `palette-${entry.id}` === activeId);
       if (!item) return;
 
       const nextItem = {
         id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        title: t(item.titleKey),
-        content: t(item.contentKey),
+        title: item.title,
+        content: item.content,
         sourceId: item.id,
         level: item.level,
         tags: item.tags,
@@ -915,7 +895,7 @@ export function PromptBuilderPage() {
     toast.success(t('promptBuilder.questPlaced', {segment: getColumnLabel(t, slotId, slotId)}));
   };
 
-  const questMinimumReady = requiredSegments.every((segmentId) => questBoard[segmentId]);
+  const questMinimumReady = publishSegments.every((segmentId) => questBoard[segmentId]);
 
   useEffect(() => {
     if (!questMinimumReady || onboardingCompleted || questCelebratedRef.current) return;
@@ -930,7 +910,508 @@ export function PromptBuilderPage() {
     toast.success(t('promptBuilder.questCompletedToast'));
   };
 
+  const completedSegmentsCount = visibleColumns.filter((column) => getSegmentContents(column.id as SegmentId).length > 0).length;
+  const promptSteps = visibleColumns.map((column) => {
+    const segmentId = column.id as SegmentId;
+    const done = getSegmentContents(segmentId).length > 0;
+    return {
+      id: column.id,
+      title: getColumnLabel(t, column.id, column.title),
+      complete: done,
+      hint: done ? t('promptBuilder.stepCompleteHint') : t('promptBuilder.stepMissingHint', {segment: getColumnLabel(t, column.id, column.title)}),
+    };
+  });
+  const bundleEntries = ['PROMPT.txt', 'PROMPT.md', 'meta.json', 'segments.json', t('promptBuilder.bundleSummaryFooter', {count: visibleColumns.length})];
+  const previewDescription = t('builderShell.previewSaved', {value: lastSavedLabel});
+  const copyComposedPrompt = async () => {
+    await navigator.clipboard.writeText(composedPrompt);
+    toast.success(t('actions.copied'));
+  };
+  const exportPromptText = () => {
+    downloadBlob(`${slugify(state.title || 'prompt')}.txt`, composedPrompt, 'text/plain');
+    toast.success(t('actions.exported'));
+  };
+  const exportPromptMarkdown = () => {
+    downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown');
+    toast.success(t('actions.exported'));
+  };
+
   const returnTo = pathname;
+  const publishActionDisabled = !supabaseEnabled || !canPublishByMinimum;
+  const publishActionTitle = !supabaseEnabled ? t('promptBuilder.supabaseRequired') : publishDisabledReason || undefined;
+
+  const sidebar = (
+    <>
+      <Card className="builder-panel">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">{t('promptBuilder.workspaceTitle')}</CardTitle>
+          <CardDescription>{t('promptBuilder.workspaceDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-700">{t('promptBuilder.structure')}</span>
+              <StepHelp tooltip={t('help.prompt.macro')} />
+            </div>
+            <Select value={state.structure} onValueChange={handleStructureChange}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('promptBuilder.structure')} />
+              </SelectTrigger>
+              <SelectContent>
+                {structures.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {getStructureLabel(item.id, structures)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">{t('filters.allNiches')}</span>
+            <Select value={state.niche ?? 'all'} onValueChange={(value) => setState((prev) => ({...prev, niche: value}))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filters.allNiches')}</SelectItem>
+                <SelectItem value="dev">{t('filters.dev')}</SelectItem>
+                <SelectItem value="images">{t('filters.images')}</SelectItem>
+                <SelectItem value="videos">{t('filters.videos')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-slate-700">{t('common.search')}</span>
+            <Input placeholder={t('common.search')} value={search} onChange={(event) => setSearch(event.target.value)} className="bg-white" />
+          </div>
+
+          <Button variant="outline" className="w-full justify-center" onClick={() => setMacroModalOpen(true)} title={t('promptBuilder.applyMacro')}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            {t('promptBuilder.applyMacro')}
+          </Button>
+
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-700">{t('promptBuilder.advancedMode')}</span>
+                  <StepHelp tooltip={t('promptBuilder.advancedModeTooltip')} />
+                </div>
+                <p className="text-xs text-slate-500">{t('promptBuilder.simpleModeDescription')}</p>
+              </div>
+              <Switch checked={advancedMode} onCheckedChange={switchAdvancedMode} aria-label={t('promptBuilder.advancedMode')} />
+            </div>
+
+            {advancedMode ? (
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <Gamepad2 className="h-4 w-4 text-slate-500" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{mode === 'quest' ? t('promptBuilder.gameMode') : t('promptBuilder.proMode')}</p>
+                    <p className="text-xs text-slate-500">{t('promptBuilder.gameModeTooltip')}</p>
+                  </div>
+                </div>
+                <Switch checked={mode === 'quest'} onCheckedChange={switchMode} aria-label={t('promptBuilder.gameMode')} />
+              </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      <BuilderStepper
+        title={t('promptBuilder.stepsTitle')}
+        description={t('promptBuilder.stepsDescription')}
+        steps={promptSteps}
+        onStepSelect={(stepId) => focusSegment(stepId as SegmentId)}
+      />
+
+      {advancedMode ? (
+        <Card className="builder-panel">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t('promptBuilder.finalOrderTitle')}</CardTitle>
+            <CardDescription>{t('promptBuilder.finalOrderDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SortableContext items={requiredSegments.map((segmentId) => `segment-order-${segmentId}`)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {requiredSegments.map((segmentId, index) => (
+                  <SegmentOrderItem
+                    key={segmentId}
+                    segmentId={segmentId}
+                    label={getColumnLabel(t, segmentId, segmentId)}
+                    onFocus={focusSegment}
+                    onMoveUp={moveSegmentUp}
+                    onMoveDown={moveSegmentDown}
+                    canMoveUp={index > 0}
+                    canMoveDown={index < requiredSegments.length - 1}
+                    moveUpLabel={t('promptBuilder.moveUp')}
+                    moveDownLabel={t('promptBuilder.moveDown')}
+                    reorderLabel={t('common.reorder')}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card className={`builder-panel ${canPublishByMinimum ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/70'}`}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">{t('actions.publish')}</CardTitle>
+          <CardDescription>{t('promptBuilder.minimumsToPublishDynamic', {structure: getStructureLabel(state.structure, structures), items: requiredList})}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {canPublishByMinimum ? (
+            <p className="text-sm font-medium text-emerald-700">{t('promptBuilder.readyToPublish')}</p>
+          ) : (
+            <>
+              <p className="text-sm text-amber-700">{t('promptBuilder.missingList', {items: missingList})}</p>
+              {firstMissingSegment ? (
+                <Button variant="outline" size="sm" onClick={() => focusSegment(firstMissingSegment)}>
+                  {t('actions.goToMissing')}
+                </Button>
+              ) : null}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {advancedMode ? (
+        <Card className="builder-panel">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t('promptBuilder.structureChecklistTitle', {structure: getStructureLabel(state.structure, structures)})}</CardTitle>
+            <CardDescription>{t('promptBuilder.structureChecklistDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {checklistEntries.map((entry) => (
+              <label key={entry.key} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[color:var(--prompteero-blue)]"
+                  checked={entry.checked}
+                  onChange={(event) => toggleChecklist(entry.key, event.target.checked)}
+                />
+                <span className="flex-1 text-slate-800">{entry.label}</span>
+                <Badge variant={entry.contentReady ? 'default' : 'secondary'}>{entry.contentReady ? t('promptBuilder.complete') : t('promptBuilder.pending')}</Badge>
+              </label>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+    </>
+  );
+
+  const editor = (
+    <div className="space-y-4 pb-12">
+      <Card glow className="builder-panel border-blue-100">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base">{t('promptBuilder.structureTypeTitle')}</CardTitle>
+            <StepHelp tooltip={t('help.prompt.macro')} />
+          </div>
+          <CardDescription>{t('promptBuilder.structureTypeDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {currentStructure ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">{t('promptBuilder.structureGuideTitle', {structure: getStructureLabel(currentStructure.id, structures)})}</p>
+              <p className="mt-1 text-sm text-slate-600">{currentStructure.whatIs}</p>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('structuresPage.whenToUse')}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                {currentStructure.whenToUse.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {advancedMode && mode === 'quest' ? (
+        <Card glow className="builder-panel border-emerald-200 bg-emerald-50/60">
+          <CardHeader>
+            <CardTitle className="text-base">{t('promptBuilder.questTitle')}</CardTitle>
+            <CardDescription>{t('promptBuilder.questSubtitle')}</CardDescription>
+            <p className="text-xs font-medium text-emerald-700">
+              {t('promptBuilder.questProgress', {
+                done: publishSegments.filter((segmentId) => questBoard[segmentId]).length,
+                total: publishSegments.length,
+              })}
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questCards')}</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {publishSegments.map((segmentId) => (
+                  <button
+                    key={`quest-card-${segmentId}`}
+                    draggable
+                    onDragStart={(event) => event.dataTransfer.setData('application/x-segment', segmentId)}
+                    className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 hover:border-emerald-300"
+                    onClick={() => focusSegment(segmentId)}
+                  >
+                    {getColumnLabel(t, segmentId, segmentId)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questBoard')}</p>
+              <div className="space-y-2">
+                {publishSegments.map((segmentId) => {
+                  const placed = questBoard[segmentId];
+                  return (
+                    <div
+                      key={`quest-slot-${segmentId}`}
+                      className={`rounded-xl border border-dashed p-3 text-sm transition-colors ${
+                        placed ? 'border-emerald-400 bg-emerald-100/70 text-emerald-900' : 'border-slate-300 bg-white text-slate-600'
+                      }`}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => onQuestDrop(segmentId, event)}
+                      onClick={() => focusSegment(segmentId)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          focusSegment(segmentId);
+                        }
+                      }}
+                    >
+                      <span className="font-medium">{getColumnLabel(t, segmentId, segmentId)}:</span>{' '}
+                      {placed ? t('promptBuilder.questPlacedLabel') : t('promptBuilder.questDropHere')}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              {questMinimumReady ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-100 p-3">
+                  <p className="text-sm font-medium text-emerald-900">{t('promptBuilder.questSuccess')}</p>
+                  <Button onClick={continueToPro}>{t('promptBuilder.continuePro')}</Button>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-600">{t('promptBuilder.questHintDynamic', {items: requiredList})}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card glow className="builder-panel border-blue-100 bg-blue-50/40">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base">{t('promptBuilder.promptDetails')}</CardTitle>
+            <StepHelp tooltip={t('help.prompt.details')} />
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <Input
+            placeholder={t('promptBuilder.promptTitle')}
+            value={state.title}
+            onChange={(event) => setState((prev) => ({...prev, title: event.target.value}))}
+            className="bg-white"
+          />
+          <Select value={state.role || ''} onValueChange={(value) => setState((prev) => ({...prev, role: value}))}>
+            <SelectTrigger className="bg-white">
+              <SelectValue placeholder={t('promptBuilder.role')} />
+            </SelectTrigger>
+            <SelectContent>
+              {roles.map((item) => (
+                <SelectItem key={item.id} value={item.label}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2 md:col-span-2">
+            <span className="text-sm font-medium text-slate-700">{t('promptBuilder.antiHallucination')}</span>
+            <StepHelp tooltip={t('promptBuilder.antiHallucinationTooltip')} />
+            <Switch
+              checked={state.antiHallucination}
+              aria-label={t('promptBuilder.antiHallucination')}
+              onCheckedChange={(value) =>
+                setState((prev) => ({
+                  ...prev,
+                  antiHallucination: value,
+                  columns: ensureAntiHallucination(prev.columns, value),
+                }))
+              }
+            />
+            <Badge variant={state.antiHallucination ? 'default' : 'secondary'}>{state.antiHallucination ? t('common.on') : t('common.off')}</Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {visibleColumns.map((column, index) => {
+        const stepBlocks = filteredBlocks.filter((block) => block.targetColumn === column.id);
+        const isSpotlight = spotlightSegmentId === column.id;
+        const segmentId = column.id as SegmentId;
+        const manualId = getManualItemId(segmentId);
+        const manualValue = column.items.find((item) => item.id === manualId)?.content ?? '';
+        const hasNonManualItems = column.items.some((item) => !isManualItem(item.id));
+
+        return (
+          <section
+            key={column.id}
+            id={`step-${column.id}`}
+            className={`scroll-mt-24 space-y-3 rounded-2xl p-1 transition-all ${isSpotlight ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">{index + 1}</div>
+              <h3 className="text-lg font-bold text-slate-800">{getColumnLabel(t, column.id, column.title)}</h3>
+              <StepHelp tooltip={t(`help.prompt.${column.id}`)} />
+            </div>
+
+            <Card glow className="builder-panel overflow-hidden">
+              <div className="border-b border-slate-100 bg-slate-50/50 px-4 py-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {t('promptBuilder.palette')} ({stepBlocks.length})
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {stepBlocks.length === 0 ? (
+                    <p className="py-2 text-xs italic text-slate-400">{t('promptBuilder.noSuggestedBlocks')}</p>
+                  ) : (
+                    stepBlocks.map((block) => (
+                      <PaletteDraggable key={block.id} id={`palette-${block.id}`}>
+                        <div
+                          className={`relative cursor-grab rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md ${
+                            activeDragId === `palette-${block.id}` ? 'opacity-50' : ''
+                          }`}
+                        >
+                          <div className="relative mb-2 h-20 w-full overflow-hidden rounded-lg">
+                            <Image src={block.image} alt={block.title} fill className="object-cover" sizes="160px" />
+                          </div>
+                          <p className="line-clamp-1 text-xs font-semibold text-slate-800">{block.title}</p>
+                          <p className="line-clamp-1 text-[10px] text-slate-500">{block.content}</p>
+                        </div>
+                      </PaletteDraggable>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <CardContent className="p-4">
+                <DropColumn
+                  column={column}
+                  title={getColumnLabel(t, column.id, column.title)}
+                  dragLabel={t('common.reorder')}
+                  onChange={(itemId, content) =>
+                    setState((prev) => ({
+                      ...prev,
+                      columns: prev.columns.map((entry) => ({
+                        ...entry,
+                        items: entry.items.map((item) => (item.id === itemId ? {...item, content} : item)),
+                      })),
+                    }))
+                  }
+                />
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.manualInputLabel')}</p>
+                  <Textarea
+                    value={manualValue}
+                    onChange={(event) =>
+                      setState((prev) => ({
+                        ...prev,
+                        columns: upsertManualSegmentContent(prev.columns, segmentId, event.target.value, t),
+                      }))
+                    }
+                    placeholder={getSegmentPlaceholder(segmentId)}
+                    className="min-h-20 bg-white"
+                  />
+                </div>
+                {!hasNonManualItems ? (
+                  <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">
+                    <p className="font-medium text-slate-700">
+                      {t('promptBuilder.segmentHintPrefix')}: {getSegmentPlaceholder(segmentId)}
+                    </p>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          </section>
+        );
+      })}
+    </div>
+  );
+
+  const preview = (
+    <PreviewPanel
+      title={t('builderShell.previewTitle')}
+      description={previewDescription}
+      actions={[
+        {
+          id: 'copy',
+          label: t('actions.copy'),
+          onClick: () => {
+            void copyComposedPrompt();
+          },
+          disabled: !hasPreviewContent,
+          icon: <Copy className="h-4 w-4" />,
+        },
+        {
+          id: 'export',
+          label: t('actions.export'),
+          disabled: !hasPreviewContent,
+          icon: <Download className="h-4 w-4" />,
+          exportItems: promptBuilderConfig.exportFormats.map((format) => {
+            if (format === 'txt') return {id: 'txt', label: t('actions.exportTxt'), onSelect: exportPromptText, disabled: !hasPreviewContent};
+            if (format === 'md') return {id: 'md', label: t('actions.exportMd'), onSelect: exportPromptMarkdown, disabled: !hasPreviewContent};
+            return {id: 'zip', label: t('actions.exportBundleZip'), onSelect: () => void exportZip(), disabled: !hasPreviewContent};
+          }),
+        },
+      ]}
+      tabs={[
+        {
+          id: 'text',
+          label: t('builderShell.tabs.text'),
+          content: (
+            <Textarea
+              value={hasPreviewContent ? composedPrompt : t('promptBuilder.exportEmpty')}
+              readOnly
+              className="min-h-[420px] resize-none bg-white font-mono text-sm"
+            />
+          ),
+        },
+        {
+          id: 'markdown',
+          label: t('builderShell.tabs.markdown'),
+          content: (
+            <pre className="max-h-[520px] overflow-y-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
+              {hasPreviewContent ? composedPrompt : t('promptBuilder.exportEmpty')}
+            </pre>
+          ),
+        },
+        {
+          id: 'bundle',
+          label: t('builderShell.tabs.bundle'),
+          content: (
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold text-slate-900">{t('promptBuilder.bundleInfoTitle')}</p>
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  {getStructureLabel(state.structure, structures)}
+                </Badge>
+              </div>
+              <ul className="space-y-2">
+                {bundleEntries.map((entry) => (
+                  <li key={entry} className="rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">
+                    {entry}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ),
+        },
+      ]}
+    />
+  );
 
   return (
     <>
@@ -959,12 +1440,12 @@ export function PromptBuilderPage() {
               <SelectValue placeholder={t('promptBuilder.structure')} />
             </SelectTrigger>
             <SelectContent>
-                  {structures.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {getStructureLabel(item.id)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              {structures.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {getStructureLabel(item.id, structures)}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
 
@@ -993,538 +1474,40 @@ export function PromptBuilderPage() {
         </div>
       </Modal>
 
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('promptBuilder.title')}</CardTitle>
-            <CardDescription>{t('promptBuilder.subtitle')}</CardDescription>
-          </CardHeader>
-        </Card>
-
-        <div className="sticky top-[58px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-0 md:rounded-2xl md:border">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-700">{t('promptBuilder.structure')}</span>
-                <StepHelp tooltip={t('help.prompt.macro')} />
-                <Select value={state.structure} onValueChange={handleStructureChange}>
-                  <SelectTrigger className="w-[120px] md:w-[160px]">
-                    <SelectValue placeholder={t('promptBuilder.structure')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {structures.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {getStructureLabel(item.id)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Select value={state.niche ?? 'all'} onValueChange={(value) => setState((prev) => ({...prev, niche: value}))}>
-                <SelectTrigger className="w-[145px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('filters.allNiches')}</SelectItem>
-                  <SelectItem value="dev">{t('filters.dev')}</SelectItem>
-                  <SelectItem value="images">{t('filters.images')}</SelectItem>
-                  <SelectItem value="videos">{t('filters.videos')}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Input
-                placeholder={t('common.search')}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-[180px] bg-white"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => setMacroModalOpen(true)} title={t('promptBuilder.applyMacro')}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                {t('promptBuilder.applyMacro')}
-              </Button>
-
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-xs font-medium text-slate-700">{t('promptBuilder.advancedMode')}</span>
-                <StepHelp tooltip={t('promptBuilder.advancedModeTooltip')} />
-                <Switch checked={advancedMode} onCheckedChange={switchAdvancedMode} aria-label={t('promptBuilder.advancedMode')} />
-              </div>
-
-              {advancedMode ? (
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <Gamepad2 className="h-4 w-4 text-slate-600" />
-                  <span className="text-xs font-medium text-slate-700">{mode === 'quest' ? t('promptBuilder.gameMode') : t('promptBuilder.proMode')}</span>
-                  <StepHelp tooltip={t('promptBuilder.gameModeTooltip')} />
-                  <Switch checked={mode === 'quest'} onCheckedChange={switchMode} aria-label={t('promptBuilder.gameMode')} />
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
-            <div className="space-y-6 pb-20">
-              <Card glow className="border-blue-100 bg-white">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-base">{t('promptBuilder.structureTypeTitle')}</CardTitle>
-                    <StepHelp tooltip={t('help.prompt.macro')} />
-                  </div>
-                  <CardDescription>{t('promptBuilder.structureTypeDescription')}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Select value={state.structure} onValueChange={handleStructureChange}>
-                    <SelectTrigger className="w-full max-w-[260px]">
-                      <SelectValue placeholder={t('promptBuilder.structure')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {structures.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {getStructureLabel(item.id)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {currentStructure ? (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-sm font-semibold text-slate-900">{t('promptBuilder.structureGuideTitle', {structure: getStructureLabel(currentStructure.id)})}</p>
-                      <p className="mt-1 text-sm text-slate-600">{t(currentStructure.whatIsKey)}</p>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('structuresPage.whenToUse')}</p>
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                        {currentStructure.whenToUseKeys.map((key) => (
-                          <li key={key}>{t(key)}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
-
-              {advancedMode && mode === 'quest' && (
-                <Card glow className="border-emerald-200 bg-emerald-50/50">
-                  <CardHeader>
-                    <CardTitle className="text-base">{t('promptBuilder.questTitle')}</CardTitle>
-                    <CardDescription>{t('promptBuilder.questSubtitle')}</CardDescription>
-                    <p className="text-xs font-medium text-emerald-700">
-                      {t('promptBuilder.questProgress', {
-                        done: requiredSegments.filter((segmentId) => questBoard[segmentId]).length,
-                        total: requiredSegments.length,
-                      })}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questCards')}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {requiredSegments.map((segmentId) => (
-                          <button
-                            key={`quest-card-${segmentId}`}
-                            draggable
-                            onDragStart={(event) => event.dataTransfer.setData('application/x-segment', segmentId)}
-                            className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 hover:border-emerald-300"
-                            onClick={() => focusSegment(segmentId)}
-                          >
-                            {getColumnLabel(t, segmentId, segmentId)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.questBoard')}</p>
-                      <div className="space-y-2">
-                        {requiredSegments.map((segmentId) => {
-                          const placed = questBoard[segmentId];
-                          return (
-                            <div
-                              key={`quest-slot-${segmentId}`}
-                              className={`rounded-xl border border-dashed p-3 text-sm transition-colors ${
-                                placed ? 'border-emerald-400 bg-emerald-100/70 text-emerald-900' : 'border-slate-300 bg-white text-slate-600'
-                              }`}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={(event) => onQuestDrop(segmentId, event)}
-                              onClick={() => focusSegment(segmentId)}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault();
-                                  focusSegment(segmentId);
-                                }
-                              }}
-                            >
-                              <span className="font-medium">{getColumnLabel(t, segmentId, segmentId)}:</span>{' '}
-                              {placed ? t('promptBuilder.questPlacedLabel') : t('promptBuilder.questDropHere')}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      {questMinimumReady ? (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-100 p-3">
-                          <p className="text-sm font-medium text-emerald-900">{t('promptBuilder.questSuccess')}</p>
-                          <Button onClick={continueToPro}>{t('promptBuilder.continuePro')}</Button>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-600">{t('promptBuilder.questHintDynamic', {items: requiredList})}</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card glow className="border-blue-100 bg-blue-50/50">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-base">{t('promptBuilder.promptDetails')}</CardTitle>
-                    <StepHelp tooltip={t('help.prompt.details')} />
-                  </div>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <Input
-                    placeholder={t('promptBuilder.promptTitle')}
-                    value={state.title}
-                    onChange={(e) => setState((prev) => ({...prev, title: e.target.value}))}
-                    className="bg-white"
-                  />
-                  <Select value={state.role || ''} onValueChange={(value) => setState((prev) => ({...prev, role: value}))}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder={t('promptBuilder.role')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(rolesSeed as Array<{id: string; labelKey: string}>).map((item) => (
-                        <SelectItem key={item.id} value={t(item.labelKey)}>
-                          {t(item.labelKey)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex items-center gap-2 md:col-span-2">
-                    <span className="text-sm font-medium text-slate-700">{t('promptBuilder.antiHallucination')}</span>
-                    <StepHelp tooltip={t('promptBuilder.antiHallucinationTooltip')} />
-                    <Switch
-                      checked={state.antiHallucination}
-                      aria-label={t('promptBuilder.antiHallucination')}
-                      onCheckedChange={(value) =>
-                        setState((prev) => ({
-                          ...prev,
-                          antiHallucination: value,
-                          columns: ensureAntiHallucination(prev.columns, value),
-                        }))
-                      }
-                    />
-                    <Badge variant={state.antiHallucination ? 'default' : 'secondary'}>{state.antiHallucination ? t('common.on') : t('common.off')}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {advancedMode ? (
-                <>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">{t('promptBuilder.finalOrderTitle')}</CardTitle>
-                      <CardDescription>{t('promptBuilder.finalOrderDescription')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <SortableContext items={requiredSegments.map((segmentId) => `segment-order-${segmentId}`)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-2">
-                          {requiredSegments.map((segmentId, index) => (
-                            <SegmentOrderItem
-                              key={segmentId}
-                              segmentId={segmentId}
-                              label={getColumnLabel(t, segmentId, segmentId)}
-                              onFocus={focusSegment}
-                              onMoveUp={moveSegmentUp}
-                              onMoveDown={moveSegmentDown}
-                              canMoveUp={index > 0}
-                              canMoveDown={index < requiredSegments.length - 1}
-                              moveUpLabel={t('promptBuilder.moveUp')}
-                              moveDownLabel={t('promptBuilder.moveDown')}
-                              reorderLabel={t('common.reorder')}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">{t('promptBuilder.stepsTitle')}</CardTitle>
-                      <CardDescription>{t('promptBuilder.stepsDescription')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {visibleColumns.map((column, index) => {
-                          const segmentId = column.id as SegmentId;
-                          const done = getSegmentContents(segmentId).length > 0;
-                          return (
-                            <a
-                              key={column.id}
-                              href={`#step-${column.id}`}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 transition-colors hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--prompteero-blue)]"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
-                                    {index + 1}
-                                  </span>
-                                  {getColumnLabel(t, column.id, column.title)}
-                                </span>
-                                {done ? (
-                                  <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                    {t('promptBuilder.complete')}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-slate-400">{t('promptBuilder.pending')}</span>
-                                )}
-                              </div>
-                              <p className="mt-1 text-xs text-slate-500">
-                                {done
-                                  ? t('promptBuilder.stepCompleteHint')
-                                  : t('promptBuilder.stepMissingHint', {segment: getColumnLabel(t, column.id, column.title)})}
-                              </p>
-                            </a>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className={canPublishByMinimum ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-200 bg-amber-50/40'}>
-                    <CardContent className="space-y-2 pt-4">
-                      <p className="text-sm font-medium text-slate-800">{t('promptBuilder.minimumsToPublishDynamic', {structure: getStructureLabel(state.structure), items: requiredList})}</p>
-                      {canPublishByMinimum ? (
-                        <p className="text-sm text-emerald-700">{t('promptBuilder.readyToPublish')}</p>
-                      ) : (
-                        <div className="space-y-2">
-                          <p className="text-sm text-amber-700">{t('promptBuilder.missingList', {items: missingList})}</p>
-                          {firstMissingSegment ? (
-                            <Button variant="outline" size="sm" onClick={() => focusSegment(firstMissingSegment)}>
-                              {t('actions.goToMissing')}
-                            </Button>
-                          ) : null}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </>
-              ) : null}
-
-              {visibleColumns.map((column, index) => {
-                const stepBlocks = filteredBlocks.filter((block) => block.targetColumn === column.id);
-                const isSpotlight = spotlightSegmentId === column.id;
-                const segmentId = column.id as SegmentId;
-                const manualId = getManualItemId(segmentId);
-                const manualValue = column.items.find((item) => item.id === manualId)?.content ?? '';
-                const hasNonManualItems = column.items.some((item) => !isManualItem(item.id));
-
-                return (
-                  <div
-                    key={column.id}
-                    id={`step-${column.id}`}
-                    className={`scroll-mt-24 space-y-3 rounded-2xl p-1 transition-all ${isSpotlight ? 'ring-2 ring-blue-300 ring-offset-2' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-                        {index + 1}
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-800">{getColumnLabel(t, column.id, column.title)}</h3>
-                      <StepHelp tooltip={t(`help.prompt.${column.id}`)} />
-                    </div>
-
-                    <Card glow className="overflow-hidden">
-                      <div className="border-b border-slate-100 bg-slate-50/50 px-4 py-3">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          {t('promptBuilder.palette')} ({stepBlocks.length})
-                        </p>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {stepBlocks.length === 0 ? (
-                            <p className="py-2 text-xs italic text-slate-400">{t('promptBuilder.noSuggestedBlocks')}</p>
-                          ) : (
-                            stepBlocks.map((block) => (
-                              <PaletteDraggable key={block.id} id={`palette-${block.id}`}>
-                                <div
-                                  className={`relative cursor-grab rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md ${
-                                    activeDragId === `palette-${block.id}` ? 'opacity-50' : ''
-                                  }`}
-                                >
-                                  <div className="relative mb-2 h-20 w-full overflow-hidden rounded-lg">
-                                    <Image src={block.image} alt={t(block.titleKey)} fill className="object-cover" sizes="160px" />
-                                  </div>
-                                  <p className="line-clamp-1 text-xs font-semibold text-slate-800">{t(block.titleKey)}</p>
-                                  <p className="line-clamp-1 text-[10px] text-slate-500">{t(block.contentKey)}</p>
-                                </div>
-                              </PaletteDraggable>
-                            ))
-                          )}
-                        </div>
-                      </div>
-
-                      <CardContent className="p-4">
-                        <DropColumn
-                          column={column}
-                          title={getColumnLabel(t, column.id, column.title)}
-                          dragLabel={t('common.reorder')}
-                          onChange={(itemId, content) =>
-                            setState((prev) => ({
-                              ...prev,
-                              columns: prev.columns.map((entry) => ({
-                                ...entry,
-                                items: entry.items.map((item) => (item.id === itemId ? {...item, content} : item)),
-                              })),
-                            }))
-                          }
-                        />
-                        <div className="mt-3 space-y-2">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('promptBuilder.manualInputLabel')}</p>
-                          <Textarea
-                            value={manualValue}
-                            onChange={(event) =>
-                              setState((prev) => ({
-                                ...prev,
-                                columns: upsertManualSegmentContent(prev.columns, segmentId, event.target.value, t),
-                              }))
-                            }
-                            placeholder={getSegmentPlaceholder(segmentId)}
-                            className="min-h-20 bg-white"
-                          />
-                        </div>
-                        {!hasNonManualItems && (
-                          <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">
-                            <p className="font-medium text-slate-700">
-                              {t('promptBuilder.segmentHintPrefix')}: {getSegmentPlaceholder(segmentId)}
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="hidden lg:block">
-              <div className="sticky top-[140px] space-y-4">
-                {advancedMode ? (
-                  <Card glow className="border-emerald-100 bg-white shadow-lg">
-                    <CardHeader className="bg-emerald-50/40 pb-3">
-                      <CardTitle className="text-sm">{t('promptBuilder.structureChecklistTitle', {structure: getStructureLabel(state.structure)})}</CardTitle>
-                      <CardDescription>{t('promptBuilder.structureChecklistDescription')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2 px-3 py-3">
-                      {checklistEntries.map((entry) => (
-                        <label key={entry.key} className="flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-2 text-sm">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 accent-[color:var(--prompteero-blue)]"
-                            checked={entry.checked}
-                            onChange={(event) => toggleChecklist(entry.key, event.target.checked)}
-                          />
-                          <span className="flex-1 text-slate-800">{entry.label}</span>
-                          <Badge variant={entry.contentReady ? 'default' : 'secondary'}>{entry.contentReady ? t('promptBuilder.complete') : t('promptBuilder.pending')}</Badge>
-                        </label>
-                      ))}
-                    </CardContent>
-                  </Card>
-                ) : null}
-
-                <Card glow className="border-blue-100 bg-white shadow-lg">
-                  <CardHeader className="bg-slate-50/50 pb-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-sm">{t('promptBuilder.preview')}</CardTitle>
-                      <Badge variant="outline" className="font-mono text-[10px]">
-                        {getStructureLabel(state.structure)}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-slate-500">{t('promptBuilder.lastSaved', {value: lastSavedLabel})}</p>
-                  </CardHeader>
-
-                  <CardContent className="p-0">
-                    <Textarea
-                      value={composedPrompt}
-                      readOnly
-                      className="min-h-[500px] resize-none rounded-none border-0 px-4 py-4 font-mono text-sm focus-visible:ring-0"
-                    />
-                  </CardContent>
-
-                  <div className="space-y-2 border-t border-slate-100 p-3">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <Button
-                        disabled={!hasPreviewContent}
-                        size="sm"
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(composedPrompt);
-                          toast.success(t('actions.copied'));
-                        }}
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        {t('actions.copy')}
-                      </Button>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={!hasPreviewContent} title={t('promptBuilder.exportTooltip')}>
-                            <Download className="mr-2 h-4 w-4" />
-                            {t('actions.export')}
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              downloadBlob(`${slugify(state.title || 'prompt')}.txt`, composedPrompt, 'text/plain');
-                              toast.success(t('actions.exported'));
-                            }}
-                          >
-                            {t('actions.exportTxt')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              downloadBlob(`${slugify(state.title || 'prompt')}.md`, composedPrompt, 'text/markdown');
-                              toast.success(t('actions.exported'));
-                            }}
-                          >
-                            {t('actions.exportMd')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              void exportZip();
-                            }}
-                          >
-                            {t('actions.exportBundleZip')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Button onClick={handlePublish} className="w-full" disabled={!supabaseEnabled || !canPublishByMinimum} title={publishDisabledReason || undefined}>
-                        <Rocket className="mr-2 h-4 w-4" />
-                        {t('actions.publish')}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={saveDraft} className="w-full" disabled={!hasPreviewContent}>
-                        <Save className="mr-2 h-4 w-4" />
-                        {t('actions.saveDraft')}
-                      </Button>
-                    </div>
-
-                    {!canPublishByMinimum && <p className="text-xs text-amber-700">{publishDisabledReason}</p>}
-                  </div>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </DndContext>
-      </div>
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <BuilderShell
+          title={t('promptBuilder.title')}
+          subtitle={t('promptBuilder.subtitle')}
+          counters={[
+            {label: t('promptBuilder.structureCounterLabel'), value: getStructureLabel(state.structure, structures)},
+            {label: t('promptBuilder.completedCounterLabel'), value: `${completedSegmentsCount}/${visibleColumns.length}`},
+            {label: t('promptBuilder.savedCounterLabel'), value: lastSavedLabel},
+          ]}
+          actions={[
+            {
+              id: 'save',
+              label: t('actions.saveDraft'),
+              onClick: saveDraft,
+              disabled: !hasPreviewContent,
+              variant: 'outline',
+              icon: <Save className="h-4 w-4" />,
+            },
+            {
+              id: 'publish',
+              label: t('actions.publish'),
+              onClick: () => {
+                void handlePublish();
+              },
+              disabled: publishActionDisabled,
+              title: publishActionTitle,
+              icon: <Rocket className="h-4 w-4" />,
+            },
+          ]}
+          sidebar={sidebar}
+          editor={editor}
+          preview={preview}
+        />
+      </DndContext>
     </>
   );
 }

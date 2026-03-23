@@ -61,7 +61,7 @@ const requiredPairs: Array<[string, string]> = [
   ['auth.requiredDesc', 'Necesitas una cuenta para publicar o guardar en favoritos.'],
   ['common.genericError', 'Ocurrió un error. Intenta de nuevo.'],
   ['promptBuilder.antiHallucinationTooltip', 'Añade reglas para reducir errores e inventos.'],
-  ['gallery.empty', 'Publica el primero y ayúdanos a iniciar la biblioteca.'],
+  ['gallery.empty', 'Todavía no hay prompts públicos. Publica el primero para empezar la biblioteca.'],
   ['actions.copy', 'Copiar'],
   ['actions.export', 'Exportar'],
   ['actions.saveDraft', 'Guardar borrador'],

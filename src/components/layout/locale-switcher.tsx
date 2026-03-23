@@ -1,8 +1,8 @@
 'use client';
 
 import {useLocale, useTranslations} from 'next-intl';
-import {usePathname, useRouter} from 'next/navigation';
 import {Button} from '@/components/ui/button';
+import {usePathname, useRouter} from '@/i18n/navigation';
 
 export function LocaleSwitcher() {
   const locale = useLocale();
@@ -11,9 +11,7 @@ export function LocaleSwitcher() {
   const pathname = usePathname();
 
   const switchLocale = (nextLocale: 'es' | 'en') => {
-    document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000`;
-    router.replace(pathname as never);
-    router.refresh();
+    router.replace(pathname, {locale: nextLocale});
   };
 
   return (

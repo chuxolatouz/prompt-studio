@@ -1,14 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import {type FormEvent, useEffect, useState} from 'react';
 import {Eye, EyeOff} from 'lucide-react';
 import {useTranslations} from 'next-intl';
-import {useRouter, useSearchParams} from 'next/navigation';
+import {useSearchParams} from 'next/navigation';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {useAuth} from '@/features/common/auth-context';
+import {Link, useRouter} from '@/i18n/navigation';
 import {
   authResultFromError,
   buildAuthHref,

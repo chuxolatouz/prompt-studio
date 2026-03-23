@@ -11,6 +11,13 @@
   --bg: #f7fafc;
   --card: var(--prompteero-white);
   --text: var(--prompteero-dark);
+  --builder-gap: 1.5rem;
+  --builder-sidebar: 18rem;
+  --builder-preview: 24rem;
+  --builder-surface: rgba(255, 255, 255, 0.92);
+  --builder-panel: rgba(255, 255, 255, 0.96);
+  --builder-hero: linear-gradient(135deg, rgba(228, 241, 250, 0.94) 0%, rgba(255, 255, 255, 0.98) 55%, rgba(236, 248, 243, 0.96) 100%);
+  --builder-border-strong: rgba(22, 96, 161, 0.16);
 }
 
 body {
@@ -118,6 +125,14 @@ pre {
 .particle-field--brand-blue .particle-field__dot:nth-child(5n) {
   opacity: 0.16;
   background: color-mix(in srgb, var(--prompteero-orange) 20%, var(--prompteero-blue) 80%);
+}
+
+.builder-surface {
+  backdrop-filter: blur(14px);
+}
+
+.builder-panel {
+  background: var(--builder-panel);
 }
 
 @keyframes particle-float {
